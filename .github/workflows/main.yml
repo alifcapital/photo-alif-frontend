@@ -15,7 +15,10 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 20
-
+      - name: Install Dependencies
+        run: |
+          echo "${{secrets.REACT_APP_API_URL}}" > .env
+          
       - name: Install Dependencies
         run: |
           npm install
