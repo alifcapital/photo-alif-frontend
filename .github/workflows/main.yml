@@ -3,32 +3,32 @@ on:
   push:
     branches:
       - main
-    
+
 env:
   CI: false
- 
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v3
-      with:
-        node-version: 20
-        
-    - name: Install Dependencies
-      run: |
-        npm install
-        npm run build
-        
-    - name: Archive build directory
-      run: ls -la
-        
-    - name: Archive build directory
-      run: tar -cjf build.tar.bz2 dist
-        
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v4
-      with:
-        name: _build
-        path: build.tar.bz2 
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          npm run build
+
+      - name: Archive build directory
+        run: ls -la
+
+      - name: Archive build directory
+        run: tar -cjf build.tar.bz2 build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: _build
+          path: build.tar.bz2
