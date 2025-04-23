@@ -1,7 +1,7 @@
 {
   "name": "photo-alif",
   "version": "0.1.0",
-  "homepage": "https://bakhtiyor-aminzoda.github.io/photo-alif-app",
+  "homepage": "/new",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
