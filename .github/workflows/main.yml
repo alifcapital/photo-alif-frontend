@@ -19,7 +19,7 @@ jobs:
     - name: Install Dependencies
       run: |
         npm install
-        npm build
+        npm run build
         
     - name: Archive build directory
       run: ls -la
