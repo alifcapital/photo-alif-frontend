@@ -25,7 +25,7 @@ jobs:
       run: ls -la
         
     - name: Archive build directory
-      run: tar -cjf build.tar.bz2 build
+      run: tar -cjf build.tar.bz2 dist
         
     - name: Upload artifact 
       uses: actions/upload-artifact@v4
