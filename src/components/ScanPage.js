@@ -171,13 +171,16 @@ export default function ScanPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
+      // Stop the camera stream if it exists
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      // Reset the scanner if it exists
+      if (codeReader.current) {
+        codeReader.current.reset();
       }
     } catch {}
-
     localStorage.clear();
     navigate("/login");
   };
