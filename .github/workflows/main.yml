@@ -35,3 +35,17 @@ jobs:
         with:
           name: _build
           path: build.tar.bz2
+
+  deploy:
+    runs-on: [self-hosted, srv15-115]  
+    needs: build
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: _build
+
+      - name: Copy file to destinations
+        run: |
+          pwd
+          tar xvjf build.tar.bz2 -C /var/www/photo/ --overwrite
