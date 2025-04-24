@@ -170,7 +170,14 @@ export default function ScanPage() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+      }
     } catch {}
+
     localStorage.clear();
     navigate("/login");
   };
@@ -180,7 +187,8 @@ export default function ScanPage() {
       <header className="header">
         <div className="logo">photo.alif.tj</div>
         <img
-          src="/logout_icon.png"
+          src="logout_icon.png"
+          alt="Logout"
           className="logout-btn"
           onClick={handleLogout}
         />
