@@ -52,9 +52,6 @@ function Viewfinder({ scanning, onStart, videoRef, overlayRef }) {
     </div>
   );
 }
-    </div>
-  );
-}
 
 // Controls component
 function Controls({ clientId, onCapture, onReset }) {
