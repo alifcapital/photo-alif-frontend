@@ -163,7 +163,7 @@ html, body, #root {
 }
 
 .logout-btn, img {
-  width: 16px;
+  width: 32px;
   background: transparent;
   border: none;
   cursor: pointer;
