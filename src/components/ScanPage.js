@@ -36,19 +36,22 @@ function useQrScanner(onDetected) {
 }
 
 // Viewfinder component
+// Viewfinder component
 function Viewfinder({ scanning, onStart, videoRef, overlayRef }) {
   return (
     <div className="viewfinder-container">
-      {scanning ? (
-        <>
-          <video ref={videoRef} className="video-stream" muted playsInline />
-          <canvas ref={overlayRef} className="overlay-canvas" />
-        </>
-      ) : (
-        <button className="action-btn" onClick={onStart}>
+      {/* Always render video and canvas */}
+      <video ref={videoRef} className="video-stream" muted playsInline />
+      <canvas ref={overlayRef} className="overlay-canvas" />
+      {/* Overlay start button when not scanning */}
+      {!scanning && (
+        <button className="action-btn start-overlay" onClick={onStart}>
           Начать сканирование QR
         </button>
       )}
+    </div>
+  );
+}
     </div>
   );
 }
@@ -99,7 +102,11 @@ export default function ScanPage() {
     setScanning(false);
   });
 
-  const handleStart = () => setScanning(true) || startScan();
+  const handleStart = () => {
+  if (scanning) return;
+  setScanning(true);
+  startScan();
+};
   const handleReset = () => { stopScan(); setClientId(null); setImages([]); setScanning(false); };
 
   const takePhoto = () => {
