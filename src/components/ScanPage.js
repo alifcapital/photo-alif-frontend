@@ -4,13 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const MAX_FILE_SIZE   = 5 * 1024 * 1024;
-const ALLOWED_TYPES   = [
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/bmp",
   "image/heic",
-  "image/heif"
+  "image/heif",
 ];
 
 // —————————————————————————————
@@ -22,7 +22,7 @@ function useQrScanner(onDetected) {
   const streamRef  = useRef(null);
 
   const startScan = useCallback(async () => {
-    // Если мы уже стримим, не запрашиваем getUserMedia повторно
+    // один запрос к getUserMedia
     if (!videoRef.current.srcObject) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
@@ -36,7 +36,8 @@ function useQrScanner(onDetected) {
         return;
       }
     }
-    // Запускаем play() только если нужно
+
+    // play() только если нужно
     try {
       if (videoRef.current.paused || videoRef.current.readyState < 3) {
         await videoRef.current.play();
@@ -53,7 +54,7 @@ function useQrScanner(onDetected) {
 
   const stopScan = useCallback(() => {
     readerRef.current?.reset();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current?.getTracks().forEach(t => t.stop());
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -63,13 +64,14 @@ function useQrScanner(onDetected) {
 }
 
 // —————————————————————————————
-// Презентационный компонент: окно сканирования
-function Viewfinder({ scanning, onStart, videoRef, overlayRef }) {
+// Компонент: окно сканирования
+function Viewfinder({ scanning, clientId, onStart, videoRef, overlayRef }) {
   return (
     <div className="viewfinder-container">
       <video ref={videoRef} className="video-stream" muted playsInline />
       <canvas ref={overlayRef} className="overlay-canvas" />
-      {!scanning && (
+      {/* кнопка появляется только до начала сканирования И пока clientId ещё null */}
+      {!scanning && clientId == null && (
         <button className="action-btn start-overlay" onClick={onStart}>
           Начать сканирование QR
         </button>
@@ -79,7 +81,7 @@ function Viewfinder({ scanning, onStart, videoRef, overlayRef }) {
 }
 
 // —————————————————————————————
-// Презентационный компонент: кнопки «Сделать фото» и «Новый QR»
+// Компонент: управление после скана
 function Controls({ clientId, onCapture, onReset }) {
   if (!clientId) return null;
   return (
@@ -98,7 +100,7 @@ function Controls({ clientId, onCapture, onReset }) {
 }
 
 // —————————————————————————————
-// Презентационный компонент: галерея превью
+// Компонент: превью галереи
 function Gallery({ images, onToggle, onDelete }) {
   if (images.length === 0) return null;
   return (
@@ -114,10 +116,7 @@ function Gallery({ images, onToggle, onDelete }) {
             />
             Паспорт
           </label>
-          <button
-            className="delete-btn"
-            onClick={() => onDelete(i)}
-          >
+          <button className="delete-btn" onClick={() => onDelete(i)}>
             ×
           </button>
         </div>
@@ -137,12 +136,10 @@ export default function ScanPage() {
   const API   = process.env.REACT_APP_API_URL || "";
   const token = localStorage.getItem("authToken");
 
-  const { videoRef, overlayRef, startScan, stopScan } = useQrScanner(
-    (text) => {
-      setClientId(text);
-      setScanning(false);
-    }
-  );
+  const { videoRef, overlayRef, startScan, stopScan } = useQrScanner(text => {
+    setClientId(text);
+    // не сбрасываем scanning, чтобы кнопка не вернулась сама
+  });
 
   const handleStart = () => {
     if (scanning) return;
@@ -159,74 +156,68 @@ export default function ScanPage() {
   const takePhoto = () => {
     const video = videoRef.current;
     const vw = video.videoWidth, vh = video.videoHeight;
-    const target = 4 / 3;
-    let w, h, sx, sy;
-    if (vw / vh > target) {
-      h = vh; w = vh * target;
-      sx = (vw - w) / 2; sy = 0;
+    const target = 4/3;
+    let w,h,sx,sy;
+    if (vw/vh > target) {
+      h = vh; w = vh * target; sx = (vw - w)/2; sy = 0;
     } else {
-      w = vw; h = vw / target;
-      sx = 0; sy = (vh - h) / 2;
+      w = vw; h = vw / target; sx = 0; sy = (vh - h)/2;
     }
     const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, sx, sy, w, h, 0, 0, w, h);
-    canvas.toBlob((blob) => {
+    canvas.toBlob(blob => {
       if (blob) {
         const url = URL.createObjectURL(blob);
-        setImages((p) => [
-          ...p,
-          { url, blob, isPassport: false }
-        ]);
+        setImages(p => [...p, { url, blob, isPassport: false }]);
       }
     }, "image/jpeg", 0.8);
   };
 
-  const togglePassport = (i) =>
-    setImages((p) =>
-      p.map((x, j) =>
-        j === i ? { ...x, isPassport: !x.isPassport } : x
+  const togglePassport = i =>
+    setImages(p =>
+      p.map((x,j) =>
+        j===i ? { ...x, isPassport: !x.isPassport } : x
       )
     );
 
-  const deletePhoto = (i) => {
+  const deletePhoto = i => {
     URL.revokeObjectURL(images[i].url);
-    setImages((p) => p.filter((_, j) => j !== i));
+    setImages(p => p.filter((_,j) => j!==i));
   };
 
   const uploadAll = async () => {
     setUploading(true);
-    const tasks = images.map(({ blob, isPassport }) => {
+    const tasks = images.map(({blob,isPassport}) => {
       const form = new FormData();
       form.append("client_id", clientId);
       form.append("image", blob);
       form.append("is_passport", isPassport ? "1" : "0");
       return fetch(`${API}/api/upload-image`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
+        method:"POST",
+        headers:{ Authorization:`Bearer ${token}` },
+        body: form
       });
     });
     const results = await Promise.allSettled(tasks);
-    results.forEach((r, i) => {
-      if (r.status === "fulfilled" && !r.value.ok) {
+    results.forEach((r,i) => {
+      if (r.status==="fulfilled" && !r.value.ok) {
         console.error(`Photo ${i+1} upload failed:`, r.value.statusText);
-      } else if (r.status === "rejected") {
+      } else if (r.status==="rejected") {
         console.error(`Photo ${i+1} upload error:`, r.reason);
       }
     });
     alert("Загрузка завершена");
-    images.forEach((img) => URL.revokeObjectURL(img.url));
+    images.forEach(img => URL.revokeObjectURL(img.url));
     setImages([]);
     setUploading(false);
   };
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      method:"POST",
+      headers:{ Authorization:`Bearer ${token}` }
     });
     stopScan();
     localStorage.clear();
@@ -238,12 +229,13 @@ export default function ScanPage() {
       <header className="header">
         <div className="logo">photo.alif.tj</div>
         <button className="logout-btn" onClick={handleLogout}>
-          <img src="logout_icon.png" alt="Logout" />
+          <img src="logout_icon.png" alt="Logout"/>
         </button>
       </header>
 
       <Viewfinder
         scanning={scanning}
+        clientId={clientId}
         onStart={handleStart}
         videoRef={videoRef}
         overlayRef={overlayRef}
