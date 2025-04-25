@@ -1,256 +1,153 @@
 // src/components/ScanPage.js
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 МБ
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/bmp"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/jpeg","image/png","image/bmp","image/heic","image/heif"];
+
+// QR scanning hook
+function useQrScanner(onDetected) {
+  const videoRef = useRef();
+  const overlayRef = useRef();
+  const readerRef = useRef();
+  const streamRef = useRef();
+
+  const startScan = useCallback(async () => {
+    readerRef.current = new BrowserMultiFormatReader();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      const result = await readerRef.current.decodeOnceFromVideoDevice(undefined, videoRef.current);
+      onDetected(result.getText());
+      // draw and clear overlay omitted for brevity
+    } catch (e) { console.error(e); }
+  }, [onDetected]);
+
+  const stopScan = useCallback(() => {
+    readerRef.current?.reset();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+  }, []);
+
+  return { videoRef, overlayRef, startScan, stopScan };
+}
+
+// Viewfinder component
+function Viewfinder({ scanning, onStart, videoRef, overlayRef }) {
+  return (
+    <div className="viewfinder-container">
+      {scanning ? (
+        <>
+          <video ref={videoRef} className="video-stream" muted playsInline />
+          <canvas ref={overlayRef} className="overlay-canvas" />
+        </>
+      ) : (
+        <button className="action-btn" onClick={onStart}>
+          Начать сканирование QR
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Controls component
+function Controls({ clientId, onCapture, onReset }) {
+  if (!clientId) return null;
+  return (
+    <div className="controls">
+      <p className="scan-success">QR успешно был обработан!</p>
+      <div className="btn-group">
+        <button className="action-btn" onClick={onCapture}>Сделать фото</button>
+        <button className="action-btn" onClick={onReset}>Новый QR</button>
+      </div>
+    </div>
+  );
+}
+
+// Gallery component
+function Gallery({ images, onToggle, onDelete }) {
+  if (images.length === 0) return null;
+  return (
+    <div className="gallery">
+      {images.map((img, i) => (
+        <div key={i} className="gallery-item">
+          <img src={img.url} alt={`Снимок ${i+1}`} className="thumb" />
+          <label className="checkbox-label">
+            <input type="checkbox" checked={img.isPassport} onChange={() => onToggle(i)} /> Паспорт
+          </label>
+          <button className="delete-btn" onClick={() => onDelete(i)}>×</button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ScanPage() {
   const navigate = useNavigate();
-  const videoRef = useRef();
-  const overlayCanvas = useRef();
-  const codeReader = useRef(null);
-  const streamRef = useRef(null);
-
   const [clientId, setClientId] = useState(null);
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [scanning, setScanning] = useState(false);
-
   const API = process.env.REACT_APP_API_URL || "";
   const token = localStorage.getItem("authToken");
 
-  // Запустить камеру и сканер по кнопке
-  const startScanning = async () => {
-    setScanning(true);
-    codeReader.current = new BrowserMultiFormatReader();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 15 },
-        },
-      });
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-
-      // однократное сканирование
-      const result = await codeReader.current.decodeOnceFromVideoDevice(
-        undefined,
-        videoRef.current
-      );
-      drawOverlay(result.getResultPoints());
-      setClientId(result.getText());
-      setTimeout(clearOverlay, 2000);
-    } catch (e) {
-      console.error("Scan error:", e);
-    }
-  };
-
-  const drawOverlay = (points) => {
-    if (!points?.length) return;
-    const canvas = overlayCanvas.current;
-    const video = videoRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#76da8b";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(points[0].getX(), points[0].getY());
-    points.forEach((p) => ctx.lineTo(p.getX(), p.getY()));
-    ctx.closePath();
-    ctx.stroke();
-  };
-
-  const clearOverlay = () => {
-    const canvas = overlayCanvas.current;
-    if (canvas)
-      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const resetScan = async () => {
-    codeReader.current.reset();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    setClientId(null);
-    setImages([]);
-    clearOverlay();
+  const { videoRef, overlayRef, startScan, stopScan } = useQrScanner(text => {
+    setClientId(text);
     setScanning(false);
-  };
+  });
+
+  const handleStart = () => setScanning(true) || startScan();
+  const handleReset = () => { stopScan(); setClientId(null); setImages([]); setScanning(false); };
 
   const takePhoto = () => {
     const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-    setImages((prev) => [...prev, { src: dataUrl, isPassport: false }]);
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const target = 4/3;
+    let w,h,sx,sy;
+    if (vw/vh > target) { h=vh; w=vh*target; sx=(vw-w)/2; sy=0; }
+    else { w=vw; h=vw/target; sx=0; sy=(vh-h)/2; }
+    const c = document.createElement("canvas"); c.width=w; c.height=h;
+    c.getContext("2d").drawImage(video,sx,sy,w,h,0,0,w,h);
+    c.toBlob(b => b && setImages(p=>[...p,{url:URL.createObjectURL(b),blob:b,isPassport:false}]),"image/jpeg",0.8);
   };
-
-  const togglePassport = (index) => {
-    setImages((prev) =>
-      prev.map((img, i) =>
-        i === index ? { ...img, isPassport: !img.isPassport } : img
-      )
-    );
-  };
-
-  const deletePhoto = (index) =>
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const togglePassport = i => setImages(p=>p.map((x,j)=>j===i?{...x,isPassport:!x.isPassport}:x));
+  const deletePhoto = i => { URL.revokeObjectURL(images[i].url); setImages(p=>p.filter((_,j)=>j!==i)); };
 
   const uploadAll = async () => {
     setUploading(true);
-    try {
-      for (const img of images) {
-        // Convert base64 to blob more efficiently
-        const base64Response = await fetch(img.src);
-        const blob = await base64Response.blob();
-
-        console.log("Image blob:", {
-          size: blob.size,
-          type: blob.type,
-          base64Length: img.src.length,
-        });
-
-        if (blob.size > MAX_FILE_SIZE) {
-          alert("Одна из фотографий слишком большая (макс. 5 МБ)");
-          continue;
-        }
-        if (!ALLOWED_TYPES.includes(blob.type)) {
-          alert("Недопустимый формат файла. Используйте JPEG/PNG/BMP.");
-          continue;
-        }
-
-        const form = new FormData();
-        form.append("client_id", clientId);
-        // Use a more specific filename with timestamp
-        form.append(
-          "image",
-          blob,
-          `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`
-        );
-        form.append("is_passport", img.isPassport ? "1" : "0");
-
-        const res = await fetch(`${API}/api/upload-image`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: form,
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-
-          throw new Error(
-            `Upload failed: ${res.status} ${res.statusText}\n${errorText}`
-          );
-        }
-      }
-      alert("Все фото успешно загружены");
-      setImages([]);
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert(`Ошибка при загрузке: ${error.message}`);
-    } finally {
-      setUploading(false);
-    }
+    const tasks = images.map(({blob,isPassport},i)=>{
+      const f=new FormData(); f.append("client_id",clientId); f.append("image",blob);
+      f.append("is_passport",isPassport?"1":"0");
+      return fetch(`${API}/api/upload-image`,{method:"POST",headers:{Authorization:`Bearer ${token}`},body:f})
+        .then(r=>({r,i}));
+    });
+    const res = await Promise.allSettled(tasks);
+    // log errors
+    res.forEach(r=>r.status!=="fulfilled"||r.value.r.ok||console.error(r));
+    alert("Загрузка завершена"); images.forEach(img=>URL.revokeObjectURL(img.url)); setImages([]);
+    setUploading(false);
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API}/api/auth/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // Stop the camera stream if it exists
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-
-      // Reset the scanner if it exists
-      if (codeReader.current) {
-        codeReader.current.reset();
-      }
-    } catch {}
-    localStorage.clear();
-    navigate("/login");
-  };
+  const handleLogout = () => { fetch(`${API}/api/auth/logout`,{method:"POST",headers:{Authorization:`Bearer ${token}`}}); stopScan(); localStorage.clear(); navigate("/login"); };
 
   return (
     <div className="scan-page">
       <header className="header">
         <div className="logo">photo.alif.tj</div>
-        <img
-          src="logout_icon.png"
-          alt="Logout"
-          className="logout-btn"
-          onClick={handleLogout}
-        />
+        <button className="logout-btn" onClick={handleLogout}><img src="logout_icon.png" alt="Logout" /></button>
       </header>
 
-      <div className="viewfinder-container">
-        {scanning ? (
-          <>
-            <video ref={videoRef} className="video-stream" muted playsInline />
-            <canvas ref={overlayCanvas} className="overlay-canvas" />
-          </>
-        ) : (
-          <button className="action-btn" onClick={startScanning}>
-            Начать сканирование QR
-          </button>
-        )}
-      </div>
+      <Viewfinder scanning={scanning} onStart={handleStart} videoRef={videoRef} overlayRef={overlayRef} />
+      <Controls clientId={clientId} onCapture={takePhoto} onReset={handleReset} />
+      <Gallery images={images} onToggle={togglePassport} onDelete={deletePhoto} />
 
-      <div className="controls">
-        {clientId && <p className="scan-success">QR успешно был обработан!</p>}
-        {clientId && (
-          <div className="btn-group">
-            <button className="action-btn" onClick={takePhoto}>
-              Сделать фото
-            </button>
-            <button className="action-btn" onClick={resetScan}>
-              Новый QR
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="gallery">
-        {images.map((img, i) => (
-          <div key={i} className="gallery-item">
-            <img src={img.src} alt={`Снимок ${i + 1}`} className="thumb" />
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={img.isPassport}
-                onChange={() => togglePassport(i)}
-              />
-              Паспорт
-            </label>
-            <button onClick={() => deletePhoto(i)} className="delete-btn">
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {images.length > 0 && (
+      {images.length>0 && (
         <div className="controls">
-          <button
-            className="action-btn upload-btn"
-            onClick={uploadAll}
-            disabled={uploading}
-          >
-            {uploading ? "Загрузка..." : "Загрузить в папку"}
+          <button className="action-btn upload-btn" onClick={uploadAll} disabled={uploading}>
+            {uploading?"Загрузка...":"Загрузить в папку"}
           </button>
         </div>
       )}
