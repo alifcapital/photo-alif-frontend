@@ -2,293 +2,290 @@
 
 /* -------------- Global Styles -------------- */
 *, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-  
-  html, body, #root {
-    height: 100%;
-    width: 100%;
-    font-family: Arial, sans-serif;
-    background: #17212B;
-    color: #fff;
-    overflow: hidden;
-  }
-  
-  /* -------------- Login Page -------------- */
-  .login-page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    width: 100vw;
-    background: #17212B;
-    position: relative;
-  }
-  
-  .login-container {
-    width: 340px;
-    padding: 2rem;
-    background: #2593CA;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .login-container .welcome img {
-    width: 80px;
-    margin-bottom: 1rem;
-  }
-  
-  .login-container form {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .login-container input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: none;
-    border-radius: 6px;
-    background: #ffffff;
-    color: #333333;
-    font-size: 16px;
-  }
-  
-  .login-container input::placeholder {
-    color: #999999;
-  }
-  
-  .login-container .password-wrapper {
-    position: relative;
-    width: 100%;
-  }
-  
-  .login-container .password-wrapper input {
-    padding-right: 3rem;
-  }
-  
-  .login-container .toggle-password {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2rem;
-    color: #555;
-  }
-  
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  font-family: Arial, sans-serif;
+  background: #17212B;
+  color: #fff;
+  /* allow scrolling */
+  overflow: auto;
+}
+
+/* -------------- Login Page -------------- */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: #17212B;
+  position: relative;
+  overflow: auto;
+}
+
+.login-container {
+  width: 340px;
+  padding: 2rem;
+  background: #2593CA;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-container .welcome img {
+  width: 80px;
+  margin-bottom: 1rem;
+}
+
+.login-container form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-container input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #333333;
+  font-size: 16px;
+}
+
+.login-container input::placeholder {
+  color: #999999;
+}
+
+.login-container .password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.login-container .password-wrapper input {
+  padding-right: 3rem;
+}
+
+.login-container .toggle-password {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #555;
+}
+
 /* submit button full width */
 .submit-btn {
-    width: 100%;
-    padding: 0.75rem;
-    background: #0b557a;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .submit-btn:hover {
-    background: #005bb5;
-  }
-  
+  width: 100%;
+  padding: 0.75rem;
+  background: #0b557a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.submit-btn:hover {
+  background: #005bb5;
+}
 
-  /* -------------- Toast Notification -------------- */
+/* -------------- Toast Notification -------------- */
 .login-toast {
-    position: absolute;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 0.75rem 1.5rem;
-    background: rgba(223,22,22,0.1);
-    border: 1px solid #df1616;
-    color: #df1616;
-    border-radius: 4px;
-    font-size: 0.95rem;
-    z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: slideDown 0.3s ease-out;
-  }
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.5rem;
+  background: rgba(223,22,22,0.1);
+  border: 1px solid #df1616;
+  color: #df1616;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: slideDown 0.3s ease-out;
+}
 
-  .login-toast.fade-out {
-    animation: fadeOut 0.3s ease-in;
-  }
+.login-toast.fade-out {
+  animation: fadeOut 0.3s ease-in;
+}
 
-  @keyframes slideDown {
-    0% {
-      opacity: 0;
-      transform: translate(-50%, -20px);
-    }
-    100% {
-      opacity: 1;
-      transform: translate(-50%, 0);
-    }
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
   }
-  
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to   { opacity: 0; }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
+}
 
-  /* -------------- Scan Page -------------- */
-  .scan-page {
-    height: 100vh;
-    overflow-y: auto;
-  }
-  
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #2593CA;
-    padding: 1.2rem 1.2rem;
-  }
-  
-  .logo {
-    font-size: 1.25rem;
-    font-weight: bold;
-  }
-  
-  .logout-btn {
-    width: 36px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .viewfinder-container {
-    position: relative;
-    width: 90%;
-    max-width: 360px;
-    aspect-ratio: 1;
-    margin: 1rem auto;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  
-  .viewfinder-container .action-btn {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-  
-  .video-stream,
-  .overlay-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .overlay-canvas {
-    pointer-events: none;
-  }
-  
-  .controls {
-    text-align: center;
-    margin: 1rem 0;
-  }
-  
-  .btn-group {
-    display: inline-flex;
-    gap: 1rem;
-  }
-  
-  .action-btn {
-    padding: 0.6rem 1.2rem;
-    font-size: 1rem;
-    border: none;
-    border-radius: 6px;
-    background: #2593CA;
-    color: #fff;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  
-  .action-btn:hover {
-    background: #1d6fa5;
-  }
-  
-  .scan-success {
-    color: #76DA8B;
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .gallery {
-    display: flex;
-    overflow-x: auto;
-    gap: 1rem;
-    padding: 0.5rem;
-  }
-  
-  .gallery-item {
-    position: relative;
-    width: 80px;
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .thumb {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 2px solid #333;
-  }
-  
-  .checkbox-label {
-    margin-top: 0.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: #fff;
-  }
-  
-  .delete-btn {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    background: #fff;
-    border: none;
-    border-radius: 50%;
-    color: #ff4d4f;
-    font-size: 14px;
-    box-shadow: 0 0 4px rgba(0,0,0,0.5);
-    padding: 0;
-    line-height: 1;
-    cursor: pointer;
-  }
-  
-  .delete-btn:hover {
-    background: #ffe6e6;
-  }
-  
-  .upload-btn {
-    margin-top: 0.5rem;
-  }
-  
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* -------------- Scan Page -------------- */
+.scan-page {
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2593CA;
+  padding: 1.2rem 1.2rem;
+}
+
+.logo {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.logout-btn {
+  width: 36px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.viewfinder-container {
+  position: relative;
+  width: 90%;
+  max-width: 360px;
+  margin: 1rem auto;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.viewfinder-container .action-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.video-stream,
+.overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overlay-canvas {
+  pointer-events: none;
+}
+
+.controls {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.btn-group {
+  display: inline-flex;
+  gap: 1rem;
+}
+
+.action-btn {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2593CA;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.action-btn:hover {
+  background: #1d6fa5;
+}
+
+.scan-success {
+  color: #76DA8B;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.gallery {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.gallery-item {
+  position: relative;
+  width: 100px;
+  flex: 0 0 auto;
+}
+
+.thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #333;
+}
+
+.checkbox-label {
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #fff;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  color: #ff4d4f;
+  font-size: 14px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background: #ffe6e6;
+}
+
+.upload-btn {
+  margin-top: 0.5rem;
+}
