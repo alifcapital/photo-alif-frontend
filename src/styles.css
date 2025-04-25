@@ -162,7 +162,7 @@ html, body, #root {
   font-weight: bold;
 }
 
-.logout-btn img {
+.logout-btn, img {
   width: 16px;
   background: transparent;
   border: none;
