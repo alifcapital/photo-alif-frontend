@@ -172,9 +172,7 @@ html, body, #root {
 .viewfinder-container {
   position: relative;
   width: 90%;
-  max-width: 360px;
   margin: 1rem auto;
-  aspect-ratio: 4 / 3;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
