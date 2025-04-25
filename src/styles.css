@@ -162,7 +162,7 @@ html, body, #root {
   font-weight: bold;
 }
 
-.logout-btn img {
+.logout-btn, img {
   width: 16px;
   background: transparent;
   border: none;
@@ -172,14 +172,11 @@ html, body, #root {
 .viewfinder-container {
   position: relative;
   width: 95%;           
-  max-width: 500px;     
+  max-width: 500px;
+  height: 50vh;
   margin: 1.5rem auto; 
   background: #000;
   border-radius: 8px;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  height: 0;
-  padding-bottom: 75%;
 }
 
 
