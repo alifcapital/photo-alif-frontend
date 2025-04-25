@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const COMPRESSION_QUALITY = 0.9; // чуть-чуть сжать, сохранить читаемость для OCR
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
@@ -14,15 +15,13 @@ const ALLOWED_TYPES = [
 ];
 
 // —————————————————————————————
-// QR-сканер как хук
+// хук для сканирования QR
 function useQrScanner(onDetected) {
-  const videoRef   = useRef(null);
-  const overlayRef = useRef(null);
-  const readerRef  = useRef(null);
-  const streamRef  = useRef(null);
+  const videoRef = useRef(null);
+  const readerRef = useRef(null);
+  const streamRef = useRef(null);
 
   const startScan = useCallback(async () => {
-    // один запрос к getUserMedia
     if (!videoRef.current.srcObject) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
@@ -37,7 +36,6 @@ function useQrScanner(onDetected) {
       }
     }
 
-    // play() только если нужно
     try {
       if (videoRef.current.paused || videoRef.current.readyState < 3) {
         await videoRef.current.play();
@@ -60,17 +58,15 @@ function useQrScanner(onDetected) {
     }
   }, []);
 
-  return { videoRef, overlayRef, startScan, stopScan };
+  return { videoRef, startScan, stopScan };
 }
 
 // —————————————————————————————
-// Компонент: окно сканирования
-function Viewfinder({ scanning, clientId, onStart, videoRef, overlayRef }) {
+// окно сканирования
+function Viewfinder({ scanning, clientId, onStart, videoRef }) {
   return (
     <div className="viewfinder-container">
       <video ref={videoRef} className="video-stream" muted playsInline />
-      <canvas ref={overlayRef} className="overlay-canvas" />
-      {/* кнопка появляется только до начала сканирования И пока clientId ещё null */}
       {!scanning && clientId == null && (
         <button className="action-btn start-overlay" onClick={onStart}>
           Начать сканирование QR
@@ -81,7 +77,7 @@ function Viewfinder({ scanning, clientId, onStart, videoRef, overlayRef }) {
 }
 
 // —————————————————————————————
-// Компонент: управление после скана
+// кнопки работы с отсканированным клиентом
 function Controls({ clientId, onCapture, onReset }) {
   if (!clientId) return null;
   return (
@@ -100,7 +96,7 @@ function Controls({ clientId, onCapture, onReset }) {
 }
 
 // —————————————————————————————
-// Компонент: превью галереи
+// галерея превью
 function Gallery({ images, onToggle, onDelete }) {
   if (images.length === 0) return null;
   return (
@@ -126,7 +122,7 @@ function Gallery({ images, onToggle, onDelete }) {
 }
 
 // —————————————————————————————
-// Главный компонент страницы сканирования
+// главный компонент
 export default function ScanPage() {
   const navigate = useNavigate();
   const [clientId, setClientId]   = useState(null);
@@ -136,9 +132,9 @@ export default function ScanPage() {
   const API   = process.env.REACT_APP_API_URL || "";
   const token = localStorage.getItem("authToken");
 
-  const { videoRef, overlayRef, startScan, stopScan } = useQrScanner(text => {
+  const { videoRef, startScan, stopScan } = useQrScanner(text => {
     setClientId(text);
-    // не сбрасываем scanning, чтобы кнопка не вернулась сама
+    // не сбрасываем scanning, чтобы стартовая кнопка не вернулась
   });
 
   const handleStart = () => {
@@ -153,59 +149,56 @@ export default function ScanPage() {
     setScanning(false);
   };
 
+  // захват полного кадра в исходном разрешении и лёгкая компрессия
   const takePhoto = () => {
     const video = videoRef.current;
-    const vw = video.videoWidth, vh = video.videoHeight;
-    const target = 4/3;
-    let w,h,sx,sy;
-    if (vw/vh > target) {
-      h = vh; w = vh * target; sx = (vw - w)/2; sy = 0;
-    } else {
-      w = vw; h = vw / target; sx = 0; sy = (vh - h)/2;
-    }
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
     const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
+    canvas.width  = vw;
+    canvas.height = vh;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, sx, sy, w, h, 0, 0, w, h);
+    ctx.drawImage(video, 0, 0, vw, vh);
     canvas.toBlob(blob => {
       if (blob) {
         const url = URL.createObjectURL(blob);
         setImages(p => [...p, { url, blob, isPassport: false }]);
       }
-    }, "image/jpeg", 0.8);
+    }, "image/jpeg", COMPRESSION_QUALITY);
   };
 
   const togglePassport = i =>
     setImages(p =>
       p.map((x,j) =>
-        j===i ? { ...x, isPassport: !x.isPassport } : x
+        j === i ? { ...x, isPassport: !x.isPassport } : x
       )
     );
 
   const deletePhoto = i => {
     URL.revokeObjectURL(images[i].url);
-    setImages(p => p.filter((_,j) => j!==i));
+    setImages(p => p.filter((_,j) => j !== i));
   };
 
+  // параллельная загрузка
   const uploadAll = async () => {
     setUploading(true);
-    const tasks = images.map(({blob,isPassport}) => {
+    const tasks = images.map(({ blob, isPassport }) => {
       const form = new FormData();
       form.append("client_id", clientId);
       form.append("image", blob);
       form.append("is_passport", isPassport ? "1" : "0");
       return fetch(`${API}/api/upload-image`, {
-        method:"POST",
-        headers:{ Authorization:`Bearer ${token}` },
-        body: form
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
       });
     });
     const results = await Promise.allSettled(tasks);
-    results.forEach((r,i) => {
-      if (r.status==="fulfilled" && !r.value.ok) {
-        console.error(`Photo ${i+1} upload failed:`, r.value.statusText);
-      } else if (r.status==="rejected") {
-        console.error(`Photo ${i+1} upload error:`, r.reason);
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled" && !r.value.ok) {
+        console.error(`Фото ${i+1} не загрузилось:`, r.value.statusText);
+      } else if (r.status === "rejected") {
+        console.error(`Ошибка загрузки фото ${i+1}:`, r.reason);
       }
     });
     alert("Загрузка завершена");
@@ -216,8 +209,8 @@ export default function ScanPage() {
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
-      method:"POST",
-      headers:{ Authorization:`Bearer ${token}` }
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     });
     stopScan();
     localStorage.clear();
@@ -238,7 +231,6 @@ export default function ScanPage() {
         clientId={clientId}
         onStart={handleStart}
         videoRef={videoRef}
-        overlayRef={overlayRef}
       />
 
       <Controls
