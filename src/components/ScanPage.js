@@ -1,22 +1,27 @@
 // src/components/ScanPage.js
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const MAX_DIMENSION     = 1280;   // максимальная сторона фото в px
-const JPEG_QUALITY      = 0.8;    // качество JPEG при toBlob
-// const ALLOWED_TYPES     = [       // если захотите проверять тип
-//   "image/jpeg",
-//   "image/png",
-//   "image/bmp",
-//   "image/heic",
-//   "image/heif",
-// ];
+const MAX_DIMENSION = 1280;
+const JPEG_QUALITY  = 0.8;
 
-// —————————————————————————————
-// хук для сканирования QR
-function useQrScanner(onDetected) {
+// Toast с анимацией
+function Toast({ message, type = "info", onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+  return (
+    <div className={`toast toast--${type}`}>
+      {message}
+    </div>
+  );
+}
+
+// Хук QR-сканирования, принимает onDetected и onError
+function useQrScanner(onDetected, onError) {
   const videoRef  = useRef(null);
   const readerRef = useRef(null);
   const streamRef = useRef(null);
@@ -26,12 +31,18 @@ function useQrScanner(onDetected) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }
+          video: {
+            facingMode: "environment",
+            width:  { ideal: 4096 },
+            height: { ideal: 2160 },
+            frameRate: { ideal: 30 }
+          }
         });
         streamRef.current = stream;
         videoRef.current.srcObject = stream;
       } catch (e) {
         console.error("getUserMedia error:", e);
+        onError?.(e);
         return;
       }
     }
@@ -44,8 +55,9 @@ function useQrScanner(onDetected) {
       onDetected(result.getText());
     } catch (e) {
       console.error("QR decode error:", e);
+      onError?.(e);
     }
-  }, [onDetected]);
+  }, [onDetected, onError]);
 
   const stopScan = useCallback(() => {
     readerRef.current?.reset();
@@ -56,8 +68,7 @@ function useQrScanner(onDetected) {
   return { videoRef, startScan, stopScan };
 }
 
-// —————————————————————————————
-// интерфейс сканера
+// Viewfinder
 function Viewfinder({ scanning, clientId, onStart, videoRef }) {
   return (
     <div className="viewfinder-container">
@@ -71,13 +82,12 @@ function Viewfinder({ scanning, clientId, onStart, videoRef }) {
   );
 }
 
-// —————————————————————————————
-// кнопки после сканирования
+// Controls
 function Controls({ clientId, onCapture, onReset }) {
   if (!clientId) return null;
   return (
     <div className="controls">
-      <p className="scan-success">QR успешно был обработан!</p>
+      <div className="scan-success">QR успешно был обработан!</div>
       <div className="btn-group">
         <button className="action-btn" onClick={onCapture}>
           Сделать фото
@@ -90,8 +100,7 @@ function Controls({ clientId, onCapture, onReset }) {
   );
 }
 
-// —————————————————————————————
-// галерея превью снимков
+// Gallery
 function Gallery({ images, onToggle, onDelete }) {
   if (images.length === 0) return null;
   return (
@@ -116,21 +125,35 @@ function Gallery({ images, onToggle, onDelete }) {
   );
 }
 
-// —————————————————————————————
-// главный компонент страницы ScanPage
+// Главный компонент ScanPage
 export default function ScanPage() {
   const navigate = useNavigate();
   const [clientId, setClientId]   = useState(null);
-  const [images, setImages]       = useState([]); // { url, blob, isPassport }
+  const [images, setImages]       = useState([]);
   const [uploading, setUploading] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
   const [scanning, setScanning]   = useState(false);
-  const API    = process.env.REACT_APP_API_URL || "";
-  const token  = localStorage.getItem("authToken");
+  const [toast, setToast]         = useState(null);
 
-  const { videoRef, startScan, stopScan } = useQrScanner(text => {
-    setClientId(text);
-  });
+  const API   = process.env.REACT_APP_API_URL || "";
+  const token = localStorage.getItem("authToken");
+
+  // Передаём onDetected и onError в хук
+  const { videoRef, startScan, stopScan } = useQrScanner(
+    (text) => {
+      setClientId(text);
+      setToast({ message: "QR успешно обработан!", type: "success" });
+    },
+    (err) => {
+      // если отказано в доступе к камере
+      if (err.name === "NotAllowedError") {
+        setToast({ message: "Доступ к камере запрещён", type: "error" });
+      } else {
+        setToast({ message: "Ошибка сканирования", type: "error" });
+      }
+      setScanning(false);
+    }
+  );
 
   const handleStart = () => {
     if (scanning) return;
@@ -144,7 +167,7 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // захват + ресайз до MAX_DIMENSION
+  // Захват и ресайз
   const takePhoto = () => {
     const video = videoRef.current;
     const vw = video.videoWidth, vh = video.videoHeight;
@@ -159,7 +182,8 @@ export default function ScanPage() {
     const canvas = document.createElement("canvas");
     canvas.width  = w;
     canvas.height = h;
-    canvas.getContext("2d").drawImage(video, 0, 0, vw, vh, 0, 0, w, h);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, w, h);
     canvas.toBlob(blob => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
@@ -176,12 +200,10 @@ export default function ScanPage() {
     setImages(prev => prev.filter((_, j) => j !== i));
   };
 
-  // параллельная загрузка с прогрессом
-  const uploadAll = async () => {
+  // Параллельная загрузка
+  const uploadAll = () => {
     setUploading(true);
     setDoneCount(0);
-    const total = images.length;
-
     images.forEach(({ blob, isPassport }, idx) => {
       const form = new FormData();
       form.append("client_id", clientId);
@@ -194,26 +216,26 @@ export default function ScanPage() {
       })
       .then(res => {
         setDoneCount(c => c + 1);
-        if (!res.ok) console.error(`Фото ${idx+1} не загрузилось:`, res.statusText);
+        if (!res.ok) {
+          setToast({ message: `Фото ${idx+1} не загрузилось`, type: "error" });
+        }
       })
-      .catch(err => {
+      .catch(() => {
         setDoneCount(c => c + 1);
-        console.error(`Ошибка загрузки фото ${idx+1}:`, err);
+        setToast({ message: `Ошибка загрузки фото ${idx+1}`, type: "error" });
       });
     });
-
-    // ждём, пока все increment-запросы отработают
-    while (doneCount < total) {
-      // простой блокирующий wait
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise(r => setTimeout(r, 200));
-    }
-
-    alert("Загрузка завершена");
-    images.forEach(img => URL.revokeObjectURL(img.url));
-    setImages([]);
-    setUploading(false);
   };
+
+  // Ожидаем завершения всех загрузок
+  useEffect(() => {
+    if (uploading && doneCount === images.length && images.length > 0) {
+      setToast({ message: "Все фото загружены!", type: "success" });
+      images.forEach(img => URL.revokeObjectURL(img.url));
+      setImages([]);
+      setUploading(false);
+    }
+  }, [doneCount, images, uploading]);
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
@@ -227,6 +249,14 @@ export default function ScanPage() {
 
   return (
     <div className="scan-page">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <header className="header">
         <div className="logo">photo.alif.tj</div>
         <button className="logout-btn" onClick={handleLogout}>
@@ -261,7 +291,7 @@ export default function ScanPage() {
             disabled={uploading}
           >
             {uploading
-              ? `Загрузка ${doneCount} / ${images.length}`
+              ? `Загружено ${doneCount} / ${images.length}`
               : "Загрузить в папку"}
           </button>
         </div>

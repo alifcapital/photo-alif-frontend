@@ -103,46 +103,37 @@ html, body, #root {
   background: #005bb5;
 }
 
-/* -------------- Toast Notification -------------- */
-.login-toast {
-  position: absolute;
+/* -------------- Toast -------------- */
+.toast {
+  position: fixed;
   top: 1rem;
   left: 50%;
   transform: translateX(-50%);
   padding: 0.75rem 1.5rem;
-  background: rgba(223,22,22,0.1);
-  border: 1px solid #df1616;
-  color: #df1616;
   border-radius: 4px;
+  color: #fff;
   font-size: 0.95rem;
-  z-index: 10;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: slideDown 0.3s ease-out;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  /* Анимации появления и исчезновения */
+  animation: slideDown 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
 }
 
-.login-toast.fade-out {
-  animation: fadeOut 0.3s ease-in;
-}
+/* Цвета */
+.toast--success { background: #4caf50; }
+.toast--error   { background: #f44336; }
+.toast--info    { background: #2196f3; }
 
+/* Ключевые кадры */
 @keyframes slideDown {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
+  0%   { opacity: 0; transform: translate(-50%, -20px); }
+  100% { opacity: 1; transform: translate(-50%, 0);     }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
 }
-
 /* -------------- Scan Page -------------- */
 .scan-page {
   min-height: 100vh;
