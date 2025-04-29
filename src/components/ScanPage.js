@@ -7,7 +7,7 @@ import "../styles.css";
 const MAX_DIMENSION = 1280;
 const JPEG_QUALITY  = 0.8;
 
-// Toast с анимацией
+// Toast с анимацией входа/выхода
 function Toast({ message, type = "info", onClose }) {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -20,11 +20,12 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
-// Хук QR-сканирования, принимает onDetected и onError
+// Хук для QR-сканирования + доступ к первому видеотреку
 function useQrScanner(onDetected, onError) {
   const videoRef  = useRef(null);
   const readerRef = useRef(null);
   const streamRef = useRef(null);
+  const trackRef  = useRef(null);
 
   const startScan = useCallback(async () => {
     if (!videoRef.current.srcObject) {
@@ -39,9 +40,9 @@ function useQrScanner(onDetected, onError) {
           }
         });
         streamRef.current = stream;
+        trackRef.current  = stream.getVideoTracks()[0];
         videoRef.current.srcObject = stream;
       } catch (e) {
-        console.error("getUserMedia error:", e);
         onError?.(e);
         return;
       }
@@ -54,7 +55,6 @@ function useQrScanner(onDetected, onError) {
       );
       onDetected(result.getText());
     } catch (e) {
-      console.error("QR decode error:", e);
       onError?.(e);
     }
   }, [onDetected, onError]);
@@ -62,10 +62,10 @@ function useQrScanner(onDetected, onError) {
   const stopScan = useCallback(() => {
     readerRef.current?.reset();
     streamRef.current?.getTracks().forEach(t => t.stop());
-    if (videoRef.current) videoRef.current.srcObject = null;
+    videoRef.current && (videoRef.current.srcObject = null);
   }, []);
 
-  return { videoRef, startScan, stopScan };
+  return { videoRef, startScan, stopScan, trackRef };
 }
 
 // Viewfinder
@@ -138,14 +138,12 @@ export default function ScanPage() {
   const API   = process.env.REACT_APP_API_URL || "";
   const token = localStorage.getItem("authToken");
 
-  // Передаём onDetected и onError в хук
-  const { videoRef, startScan, stopScan } = useQrScanner(
-    (text) => {
+  const { videoRef, startScan, stopScan, trackRef } = useQrScanner(
+    text => {
       setClientId(text);
       setToast({ message: "QR успешно обработан!", type: "success" });
     },
-    (err) => {
-      // если отказано в доступе к камере
+    err => {
       if (err.name === "NotAllowedError") {
         setToast({ message: "Доступ к камере запрещён", type: "error" });
       } else {
@@ -167,40 +165,50 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // Захват и ресайз
-  const takePhoto = () => {
-    const video = videoRef.current;
-    const vw = video.videoWidth, vh = video.videoHeight;
-    let w = vw, h = vh;
-    if (vw > vh && vw > MAX_DIMENSION) {
-      w = MAX_DIMENSION;
-      h = Math.round((MAX_DIMENSION / vw) * vh);
-    } else if (vh >= vw && vh > MAX_DIMENSION) {
-      h = MAX_DIMENSION;
-      w = Math.round((MAX_DIMENSION / vh) * vw);
+  // Захват фото через ImageCapture для максимального качества
+  const takePhoto = async () => {
+    if (!trackRef.current) {
+      setToast({ message: "Камера ещё не готова", type: "error" });
+      return;
     }
-    const canvas = document.createElement("canvas");
-    canvas.width  = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, w, h);
-    canvas.toBlob(blob => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      setImages(prev => [...prev, { url, blob, isPassport: false }]);
-    }, "image/jpeg", JPEG_QUALITY);
+    try {
+      const imageCapture = new ImageCapture(trackRef.current);
+      const blobOriginal = await imageCapture.takePhoto();
+      const bitmap = await createImageBitmap(blobOriginal);
+      let { width, height } = bitmap;
+      let w = width, h = height;
+      if (width > height && width > MAX_DIMENSION) {
+        w = MAX_DIMENSION;
+        h = Math.round((MAX_DIMENSION / width) * height);
+      } else if (height >= width && height > MAX_DIMENSION) {
+        h = MAX_DIMENSION;
+        w = Math.round((MAX_DIMENSION / height) * width);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      canvas.toBlob(resizedBlob => {
+        if (!resizedBlob) return;
+        const url = URL.createObjectURL(resizedBlob);
+        setImages(prev => [...prev, { url, blob: resizedBlob, isPassport: false }]);
+      }, "image/jpeg", JPEG_QUALITY);
+    } catch {
+      setToast({ message: "Не удалось снять фото", type: "error" });
+    }
   };
 
   const togglePassport = i =>
     setImages(prev =>
-      prev.map((x,j) => j === i ? { ...x, isPassport: !x.isPassport } : x)
+      prev.map((x,j) => (j === i ? { ...x, isPassport: !x.isPassport } : x))
     );
   const deletePhoto = i => {
     URL.revokeObjectURL(images[i].url);
     setImages(prev => prev.filter((_, j) => j !== i));
   };
 
-  // Параллельная загрузка
+  // Параллельная загрузка + счетчик прогресса
   const uploadAll = () => {
     setUploading(true);
     setDoneCount(0);
@@ -227,15 +235,17 @@ export default function ScanPage() {
     });
   };
 
-  // Ожидаем завершения всех загрузок
+  // По завершении всех загрузок — стоп камеры и сброс
   useEffect(() => {
     if (uploading && doneCount === images.length && images.length > 0) {
       setToast({ message: "Все фото загружены!", type: "success" });
       images.forEach(img => URL.revokeObjectURL(img.url));
       setImages([]);
       setUploading(false);
+      // автоматически выключаем камеру
+      stopScan();
     }
-  }, [doneCount, images, uploading]);
+  }, [doneCount, images, uploading, stopScan]);
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
