@@ -4,15 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const COMPRESSION_QUALITY = 0.9; // чуть-чуть сжать, сохранить читаемость для OCR
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/bmp",
-  "image/heic",
-  "image/heif",
-];
+const COMPRESSION_QUALITY = 0.95;  // чуть меньше сжатие, чтобы OCR читал текст без искажений
 
 // —————————————————————————————
 // хук для сканирования QR
@@ -25,21 +17,34 @@ function useQrScanner(onDetected) {
     if (!videoRef.current.srcObject) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
+        // Запрашиваем максимально возможное разрешение камеры
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }
+          video: {
+            facingMode: "environment",
+            width:  { ideal: 4096 },
+            height: { ideal: 2160 }
+          }
         });
         streamRef.current = stream;
         videoRef.current.srcObject = stream;
+
+        // Применяем constraints по максимуму из возможностей устройства
+        const [track] = stream.getVideoTracks();
+        const caps = track.getCapabilities();
+        await track.applyConstraints({
+          ...(caps.width  && { width:  caps.width.max  }),
+          ...(caps.height && { height: caps.height.max }),
+          facingMode: "environment"
+        });
       } catch (e) {
-        console.error("getUserMedia error:", e);
+        console.error("getUserMedia/applyConstraints error:", e);
         return;
       }
     }
 
     try {
-      if (videoRef.current.paused || videoRef.current.readyState < 3) {
-        await videoRef.current.play();
-      }
+      // Запускаем видео (получим кадры в full-res)
+      await videoRef.current.play();
       const result = await readerRef.current.decodeOnceFromVideoDevice(
         undefined,
         videoRef.current
@@ -53,9 +58,7 @@ function useQrScanner(onDetected) {
   const stopScan = useCallback(() => {
     readerRef.current?.reset();
     streamRef.current?.getTracks().forEach(t => t.stop());
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
   return { videoRef, startScan, stopScan };
@@ -77,7 +80,7 @@ function Viewfinder({ scanning, clientId, onStart, videoRef }) {
 }
 
 // —————————————————————————————
-// кнопки работы с отсканированным клиентом
+// кнопки после скана QR
 function Controls({ clientId, onCapture, onReset }) {
   if (!clientId) return null;
   return (
@@ -96,7 +99,7 @@ function Controls({ clientId, onCapture, onReset }) {
 }
 
 // —————————————————————————————
-// галерея превью
+// превью сделанных снимков
 function Gallery({ images, onToggle, onDelete }) {
   if (images.length === 0) return null;
   return (
@@ -122,7 +125,7 @@ function Gallery({ images, onToggle, onDelete }) {
 }
 
 // —————————————————————————————
-// главный компонент
+// главный компонент страницы
 export default function ScanPage() {
   const navigate = useNavigate();
   const [clientId, setClientId]   = useState(null);
@@ -134,7 +137,7 @@ export default function ScanPage() {
 
   const { videoRef, startScan, stopScan } = useQrScanner(text => {
     setClientId(text);
-    // не сбрасываем scanning, чтобы стартовая кнопка не вернулась
+    // не сбрасываем scanning, чтобы кнопка не вернулась
   });
 
   const handleStart = () => {
@@ -142,6 +145,7 @@ export default function ScanPage() {
     setScanning(true);
     startScan();
   };
+
   const handleReset = () => {
     stopScan();
     setClientId(null);
@@ -149,7 +153,7 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // захват полного кадра в исходном разрешении и лёгкая компрессия
+  // захват кадра в полном разрешении и лёгкая компрессия
   const takePhoto = () => {
     const video = videoRef.current;
     const vw = video.videoWidth;
@@ -157,8 +161,7 @@ export default function ScanPage() {
     const canvas = document.createElement("canvas");
     canvas.width  = vw;
     canvas.height = vh;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, vw, vh);
+    canvas.getContext("2d").drawImage(video, 0, 0, vw, vh);
     canvas.toBlob(blob => {
       if (blob) {
         const url = URL.createObjectURL(blob);
@@ -169,9 +172,7 @@ export default function ScanPage() {
 
   const togglePassport = i =>
     setImages(p =>
-      p.map((x,j) =>
-        j === i ? { ...x, isPassport: !x.isPassport } : x
-      )
+      p.map((x,j) => j === i ? { ...x, isPassport: !x.isPassport } : x)
     );
 
   const deletePhoto = i => {
@@ -193,14 +194,7 @@ export default function ScanPage() {
         body: form,
       });
     });
-    const results = await Promise.allSettled(tasks);
-    results.forEach((r, i) => {
-      if (r.status === "fulfilled" && !r.value.ok) {
-        console.error(`Фото ${i+1} не загрузилось:`, r.value.statusText);
-      } else if (r.status === "rejected") {
-        console.error(`Ошибка загрузки фото ${i+1}:`, r.reason);
-      }
-    });
+    await Promise.allSettled(tasks);
     alert("Загрузка завершена");
     images.forEach(img => URL.revokeObjectURL(img.url));
     setImages([]);
@@ -222,7 +216,7 @@ export default function ScanPage() {
       <header className="header">
         <div className="logo">photo.alif.tj</div>
         <button className="logout-btn" onClick={handleLogout}>
-          <img src="logout_icon.png" alt="Logout"/>
+          <img src="logout_icon.png" alt="Logout" />
         </button>
       </header>
 
