@@ -4,20 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const MAX_DIMENSION = 1280;       // максимальная сторона фото в px
-const JPEG_QUALITY = 0.8;        // JPEG-качество при toBlob
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/bmp",
-  "image/heic",
-  "image/heif",
-];
+const MAX_DIMENSION     = 1280;   // максимальная сторона фото в px
+const JPEG_QUALITY      = 0.8;    // качество JPEG при toBlob
+// const ALLOWED_TYPES     = [       // если захотите проверять тип
+//   "image/jpeg",
+//   "image/png",
+//   "image/bmp",
+//   "image/heic",
+//   "image/heif",
+// ];
 
 // —————————————————————————————
-// QR-хук без изменений
+// хук для сканирования QR
 function useQrScanner(onDetected) {
-  const videoRef = useRef(null);
+  const videoRef  = useRef(null);
   const readerRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -57,11 +57,67 @@ function useQrScanner(onDetected) {
 }
 
 // —————————————————————————————
-// остальные презентационные компоненты оставляем без изменений:
-// Viewfinder, Controls, Gallery…
+// интерфейс сканера
+function Viewfinder({ scanning, clientId, onStart, videoRef }) {
+  return (
+    <div className="viewfinder-container">
+      <video ref={videoRef} className="video-stream" muted playsInline />
+      {!scanning && clientId == null && (
+        <button className="action-btn start-overlay" onClick={onStart}>
+          Начать сканирование QR
+        </button>
+      )}
+    </div>
+  );
+}
 
 // —————————————————————————————
-// главный компонент
+// кнопки после сканирования
+function Controls({ clientId, onCapture, onReset }) {
+  if (!clientId) return null;
+  return (
+    <div className="controls">
+      <p className="scan-success">QR успешно был обработан!</p>
+      <div className="btn-group">
+        <button className="action-btn" onClick={onCapture}>
+          Сделать фото
+        </button>
+        <button className="action-btn" onClick={onReset}>
+          Новый QR
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// —————————————————————————————
+// галерея превью снимков
+function Gallery({ images, onToggle, onDelete }) {
+  if (images.length === 0) return null;
+  return (
+    <div className="gallery">
+      {images.map((img, i) => (
+        <div key={i} className="gallery-item">
+          <img src={img.url} alt={`Снимок ${i + 1}`} className="thumb" />
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={img.isPassport}
+              onChange={() => onToggle(i)}
+            />
+            Паспорт
+          </label>
+          <button className="delete-btn" onClick={() => onDelete(i)}>
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// —————————————————————————————
+// главный компонент страницы ScanPage
 export default function ScanPage() {
   const navigate = useNavigate();
   const [clientId, setClientId]   = useState(null);
@@ -69,8 +125,8 @@ export default function ScanPage() {
   const [uploading, setUploading] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
   const [scanning, setScanning]   = useState(false);
-  const API   = process.env.REACT_APP_API_URL || "";
-  const token = localStorage.getItem("authToken");
+  const API    = process.env.REACT_APP_API_URL || "";
+  const token  = localStorage.getItem("authToken");
 
   const { videoRef, startScan, stopScan } = useQrScanner(text => {
     setClientId(text);
@@ -92,7 +148,6 @@ export default function ScanPage() {
   const takePhoto = () => {
     const video = videoRef.current;
     const vw = video.videoWidth, vh = video.videoHeight;
-    // считаем новую размерность
     let w = vw, h = vh;
     if (vw > vh && vw > MAX_DIMENSION) {
       w = MAX_DIMENSION;
@@ -101,12 +156,10 @@ export default function ScanPage() {
       h = MAX_DIMENSION;
       w = Math.round((MAX_DIMENSION / vh) * vw);
     }
-    // рисуем на canvas нужного размера
     const canvas = document.createElement("canvas");
     canvas.width  = w;
     canvas.height = h;
     canvas.getContext("2d").drawImage(video, 0, 0, vw, vh, 0, 0, w, h);
-    // получаем blob с компрессией
     canvas.toBlob(blob => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
@@ -116,7 +169,7 @@ export default function ScanPage() {
 
   const togglePassport = i =>
     setImages(prev =>
-      prev.map((x, j) => j === i ? { ...x, isPassport: !x.isPassport } : x)
+      prev.map((x,j) => j === i ? { ...x, isPassport: !x.isPassport } : x)
     );
   const deletePhoto = i => {
     URL.revokeObjectURL(images[i].url);
@@ -129,12 +182,12 @@ export default function ScanPage() {
     setDoneCount(0);
     const total = images.length;
 
-    const tasks = images.map(({ blob, isPassport }, idx) => {
+    images.forEach(({ blob, isPassport }, idx) => {
       const form = new FormData();
       form.append("client_id", clientId);
       form.append("image", blob);
       form.append("is_passport", isPassport ? "1" : "0");
-      return fetch(`${API}/api/upload-image`, {
+      fetch(`${API}/api/upload-image`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -149,7 +202,13 @@ export default function ScanPage() {
       });
     });
 
-    await Promise.all(tasks);
+    // ждём, пока все increment-запросы отработают
+    while (doneCount < total) {
+      // простой блокирующий wait
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(r => setTimeout(r, 200));
+    }
+
     alert("Загрузка завершена");
     images.forEach(img => URL.revokeObjectURL(img.url));
     setImages([]);
@@ -202,7 +261,7 @@ export default function ScanPage() {
             disabled={uploading}
           >
             {uploading
-              ? `Загрузка ${doneCount} / ${images.length}…`
+              ? `Загрузка ${doneCount} / ${images.length}`
               : "Загрузить в папку"}
           </button>
         </div>
