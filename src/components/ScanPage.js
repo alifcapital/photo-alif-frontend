@@ -4,10 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const MAX_DIMENSION = 1280;
-const JPEG_QUALITY  = 0.8;
-
-// Toast с анимацией
+// Toast с анимацией входа/выхода
 function Toast({ message, type = "info", onClose }) {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -20,7 +17,7 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
-// Хук для QR-сканирования + доступ к видеотреку
+// Хук для QR-сканирования и доступа к видеотреку
 function useQrScanner(onDetected, onError) {
   const videoRef  = useRef(null);
   const readerRef = useRef(null);
@@ -63,7 +60,7 @@ function useQrScanner(onDetected, onError) {
   return { videoRef, startScan, stopScan, trackRef };
 }
 
-// Viewfinder
+// Viewfinder — окно с видео и кнопкой старта
 function Viewfinder({ scanning, clientId, onStart, videoRef }) {
   return (
     <div className="viewfinder-container">
@@ -77,7 +74,7 @@ function Viewfinder({ scanning, clientId, onStart, videoRef }) {
   );
 }
 
-// Controls
+// Controls — кнопки «Сделать фото» и «Новый QR»
 function Controls({ clientId, onCapture, onReset }) {
   if (!clientId) return null;
   return (
@@ -95,7 +92,7 @@ function Controls({ clientId, onCapture, onReset }) {
   );
 }
 
-// Gallery
+// Gallery — превью снятых фото
 function Gallery({ images, onToggle, onDelete }) {
   if (images.length === 0) return null;
   return (
@@ -136,7 +133,7 @@ export default function ScanPage() {
   const { videoRef, startScan, stopScan, trackRef } = useQrScanner(
     text => {
       setClientId(text);
-      setToast({ message: "QR обработан!", type: "success" });
+      setToast({ message: "QR успешно обработан!", type: "success" });
     },
     err => {
       if (err.name === "NotAllowedError") {
@@ -160,38 +157,21 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // Снятие фото с фолбэком для iPhone
+  // Снятие фото: сначала через ImageCapture, иначе через canvas-фолбэк
   const takePhoto = async () => {
-    // попробуем ImageCapture, если есть
+    // ImageCapture API
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
-        const blobOriginal = await capture.takePhoto();
-        const bitmap = await createImageBitmap(blobOriginal);
-        let { width, height } = bitmap;
-        let w = width, h = height;
-        if (width > height && width > MAX_DIMENSION) {
-          w = MAX_DIMENSION;
-          h = Math.round((MAX_DIMENSION / width) * height);
-        } else if (height >= width && height > MAX_DIMENSION) {
-          h = MAX_DIMENSION;
-          w = Math.round((MAX_DIMENSION / height) * width);
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width  = w;
-        canvas.height = h;
-        canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
-        canvas.toBlob(resizedBlob => {
-          if (!resizedBlob) throw new Error();
-          const url = URL.createObjectURL(resizedBlob);
-          setImages(prev => [...prev, { url, blob: resizedBlob, isPassport: false }]);
-        }, "image/jpeg", JPEG_QUALITY);
+        const blob = await capture.takePhoto();
+        const url  = URL.createObjectURL(blob);
+        setImages(prev => [...prev, { url, blob, isPassport: false }]);
         return;
       } catch {
-        /* fall through to canvas fallback */
+        // фолбэк на canvas ниже
       }
     }
-    // Фолбэк: canvas из <video>
+    // canvas-фолбэк
     try {
       const video = videoRef.current;
       const vw = video.videoWidth, vh = video.videoHeight;
@@ -200,10 +180,10 @@ export default function ScanPage() {
       canvas.height = vh;
       canvas.getContext("2d").drawImage(video, 0, 0, vw, vh);
       canvas.toBlob(blob => {
-        if (!blob) throw new Error();
+        if (!blob) throw new Error("blob==null");
         const url = URL.createObjectURL(blob);
         setImages(prev => [...prev, { url, blob, isPassport: false }]);
-      }, "image/jpeg", JPEG_QUALITY);
+      }, "image/jpeg", 1);
     } catch {
       setToast({ message: "Не удалось сделать фото", type: "error" });
     }
@@ -218,7 +198,7 @@ export default function ScanPage() {
     setImages(prev => prev.filter((_, j) => j !== i));
   };
 
-  // Загрузка всех фото
+  // Параллельная загрузка и прогресс
   const uploadAll = () => {
     setUploading(true);
     setDoneCount(0);
@@ -245,7 +225,7 @@ export default function ScanPage() {
     });
   };
 
-  // После загрузки всех – выключить камеру
+  // Когда все фото загружены — останавливаем камеру и сбрасываем
   useEffect(() => {
     if (uploading && doneCount === images.length && images.length > 0) {
       setToast({ message: "Все фото загружены!", type: "success" });
