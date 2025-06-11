@@ -26,9 +26,9 @@ function useQrScanner(onDetected, onError) {
         readerRef.current = new BrowserMultiFormatReader();
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
+            width: { min: 640, ideal: 1920 },
+            height: { min: 480, ideal: 1080 },
+            frameRate: { min: 10, ideal: 30 },
             facingMode: "environment",
           },
         });
