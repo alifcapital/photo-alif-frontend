@@ -204,49 +204,51 @@ export default function ScanPage() {
     setImages((prev) => prev.filter((_, j) => j !== i));
   };
 
-  // Параллельная загрузка и прогресс
-  const uploadAll = () => {
+  // Последовательная загрузка фото
+  const uploadAll = async () => {
     setUploading(true);
     setDoneCount(0);
-    images.forEach(({ blob, isPassport }, idx) => {
-      const form = new FormData();
-      form.append("client_id", clientId);
-      form.append("image", blob);
-      form.append("is_passport", isPassport ? "1" : "0");
-      fetch(`${API}/api/upload-image`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      })
-        .then((res) => {
-          setDoneCount((c) => c + 1);
+
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const { blob, isPassport } = images[i];
+        const form = new FormData();
+        form.append("client_id", clientId);
+        form.append("image", blob);
+        form.append("is_passport", isPassport ? "1" : "0");
+
+        try {
+          const res = await fetch(`${API}/api/upload-image`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          });
+
+          setDoneCount(i + 1);
+
           if (!res.ok) {
             setToast({
-              message: `Фото ${idx + 1} не загрузилось`,
+              message: `Фото ${i + 1} не загрузилось`,
               type: "error",
             });
           }
-        })
-        .catch(() => {
-          setDoneCount((c) => c + 1);
+        } catch (error) {
+          setDoneCount(i + 1);
           setToast({
-            message: `Ошибка загрузки фото ${idx + 1}`,
+            message: `Ошибка загрузки фото ${i + 1}`,
             type: "error",
           });
-        });
-    });
-  };
+        }
+      }
 
-  // Когда все фото загружены — останавливаем камеру и сбрасываем
-  useEffect(() => {
-    if (uploading && doneCount === images.length && images.length > 0) {
       setToast({ message: "Все фото загружены!", type: "success" });
       images.forEach((img) => URL.revokeObjectURL(img.url));
       setImages([]);
-      setUploading(false);
       stopScan();
+    } finally {
+      setUploading(false);
     }
-  }, [doneCount, images, uploading, stopScan]);
+  };
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
