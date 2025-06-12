@@ -165,7 +165,6 @@ export default function ScanPage() {
       try {
         const capture = new ImageCapture(trackRef.current);
         const { width, height } = trackRef.current.getSettings();
-        alert(`Width: ${width}, Height: ${height}`);
         const blob = await capture.takePhoto({
           imageWidth: width,
           imageHeight: height,
@@ -182,7 +181,11 @@ export default function ScanPage() {
     try {
       const video = videoRef.current;
       const settings = trackRef.current.getSettings();
+
       const canvas = document.createElement("canvas");
+
+      alert(JSON.stringify(settings));
+
       canvas.width = settings.width;
       canvas.height = settings.height;
       canvas
