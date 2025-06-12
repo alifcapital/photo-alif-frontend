@@ -43,6 +43,11 @@ function useQrScanner(onDetected, onError) {
         });
         streamRef.current = stream;
         trackRef.current = stream.getVideoTracks()[0];
+        const settings = trackRef.current.getSettings();
+
+        const { width, height, frameRate } = settings;
+        alert(`Width: ${width}, Height: ${height}, FrameRate: ${frameRate}`);
+
         videoRef.current.srcObject = stream;
       } catch (e) {
         onError?.(e);
