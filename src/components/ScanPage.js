@@ -24,12 +24,17 @@ function useQrScanner(onDetected, onError) {
     if (!videoRef.current.srcObject) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { min: 1280, ideal: 1920, max: 4096 },
-            height: { min: 720, ideal: 1080, max: 2160 },
-            frameRate: { min: 30, ideal: 60 },
             facingMode: "environment",
+
+            ...(!isIOS && {
+              width: { min: 1280, ideal: 1920, max: 4096 },
+              height: { min: 720, ideal: 1080, max: 2160 },
+              frameRate: { min: 30, ideal: 60 },
+            }),
           },
         });
         streamRef.current = stream;
@@ -182,9 +187,11 @@ export default function ScanPage() {
 
       const canvas = document.createElement("canvas");
 
-      canvas.width = 1920;
-      canvas.height = 1080;
-      canvas.getContext("2d").drawImage(video, 0, 0, 1920, 1080);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas
+        .getContext("2d")
+        .drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(
         (blob) => {
           if (!blob) throw new Error("blob==null");
