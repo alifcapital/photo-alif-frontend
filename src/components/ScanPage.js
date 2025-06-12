@@ -43,11 +43,6 @@ function useQrScanner(onDetected, onError) {
         });
         streamRef.current = stream;
         trackRef.current = stream.getVideoTracks()[0];
-        const settings = trackRef.current.getSettings();
-
-        const { width, height, frameRate } = settings;
-        alert(`Width: ${width}, Height: ${height}, FrameRate: ${frameRate}`);
-
         videoRef.current.srcObject = stream;
       } catch (e) {
         onError?.(e);
@@ -178,7 +173,12 @@ export default function ScanPage() {
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
-        const blob = await capture.takePhoto();
+        const settings = trackRef.current.getSettings();
+        const blob = await capture.takePhoto({
+          imageWidth: settings.width,
+          imageHeight: settings.height,
+          fillLightMode: "auto",
+        });
         const url = URL.createObjectURL(blob);
         setImages((prev) => [...prev, { url, blob, isPassport: false }]);
         return;
@@ -189,12 +189,13 @@ export default function ScanPage() {
     // canvas-фолбэк
     try {
       const video = videoRef.current;
-      const vw = video.videoWidth,
-        vh = video.videoHeight;
+      const settings = trackRef.current.getSettings();
       const canvas = document.createElement("canvas");
-      canvas.width = vw;
-      canvas.height = vh;
-      canvas.getContext("2d").drawImage(video, 0, 0, vw, vh);
+      canvas.width = settings.width;
+      canvas.height = settings.height;
+      canvas
+        .getContext("2d")
+        .drawImage(video, 0, 0, settings.width, settings.height);
       canvas.toBlob(
         (blob) => {
           if (!blob) throw new Error("blob==null");
