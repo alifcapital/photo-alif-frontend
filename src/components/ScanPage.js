@@ -164,10 +164,9 @@ export default function ScanPage() {
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
-        const { width, height } = trackRef.current.getSettings();
         const blob = await capture.takePhoto({
-          imageWidth: width,
-          imageHeight: height,
+          imageWidth: 1920,
+          imageHeight: 1080,
           fillLightMode: "auto",
         });
         const url = URL.createObjectURL(blob);
@@ -180,17 +179,12 @@ export default function ScanPage() {
     // canvas-фолбэк
     try {
       const video = videoRef.current;
-      const settings = trackRef.current.getSettings();
 
       const canvas = document.createElement("canvas");
 
-      alert(JSON.stringify(settings));
-
-      canvas.width = settings.width;
-      canvas.height = settings.height;
-      canvas
-        .getContext("2d")
-        .drawImage(video, 0, 0, settings.width, settings.height);
+      canvas.width = 1920;
+      canvas.height = 1080;
+      canvas.getContext("2d").drawImage(video, 0, 0, 1920, 1080);
       canvas.toBlob(
         (blob) => {
           if (!blob) throw new Error("blob==null");
