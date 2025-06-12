@@ -24,21 +24,12 @@ function useQrScanner(onDetected, onError) {
     if (!videoRef.current.srcObject) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: isIOS
-              ? { ideal: 1280 }
-              : { min: 1280, ideal: 1920, max: 4096 },
-            height: isIOS
-              ? { ideal: 720 }
-              : { min: 720, ideal: 1080, max: 2160 },
+            width: { min: 1280, ideal: 1920, max: 4096 },
+            height: { min: 720, ideal: 1080, max: 2160 },
             frameRate: { min: 30, ideal: 60 },
             facingMode: "environment",
-            ...(isIOS && {
-              aspectRatio: { ideal: 1.777777778 }, // 16:9
-              resizeMode: "crop-and-scale",
-            }),
           },
         });
         streamRef.current = stream;
@@ -173,10 +164,11 @@ export default function ScanPage() {
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
-        const settings = trackRef.current.getSettings();
+        const { width, height } = trackRef.current.getSettings();
+        alert(`Width: ${width}, Height: ${height}`);
         const blob = await capture.takePhoto({
-          imageWidth: settings.width,
-          imageHeight: settings.height,
+          imageWidth: width,
+          imageHeight: height,
           fillLightMode: "auto",
         });
         const url = URL.createObjectURL(blob);
