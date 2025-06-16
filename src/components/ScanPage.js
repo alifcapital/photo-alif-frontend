@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 // Toast с анимацией входа/выхода
 function Toast({ message, type = "info", onClose }) {
   useEffect(() => {
@@ -170,9 +172,10 @@ export default function ScanPage() {
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const blob = await capture.takePhoto({
-          imageWidth: 1920,
-          imageHeight: 1080,
+          imageWidth: isIOS ? 3840 : 1920, // 4K for iOS, 1080p for others
+          imageHeight: isIOS ? 2160 : 1080, // 4K for iOS, 1080p for others
           fillLightMode: "auto",
         });
         const url = URL.createObjectURL(blob);
@@ -187,16 +190,38 @@ export default function ScanPage() {
       const video = videoRef.current;
       const canvas = document.createElement("canvas");
 
-      // Use the actual video dimensions for better quality
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Set dimensions based on device
+      canvas.width = isIOS ? 3840 : video.videoWidth; // 4K for iOS, native for others
+      canvas.height = isIOS ? 2160 : video.videoHeight; // 4K for iOS, native for others
 
       const ctx = canvas.getContext("2d");
       // Enable image smoothing for better quality
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
 
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (isIOS) {
+        // Draw image maintaining aspect ratio for iOS
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        let drawWidth = canvas.width;
+        let drawHeight = canvas.height;
+
+        if (aspectRatio > 1) {
+          // Landscape
+          drawHeight = drawWidth / aspectRatio;
+        } else {
+          // Portrait
+          drawWidth = drawHeight * aspectRatio;
+        }
+
+        // Center the image
+        const x = (canvas.width - drawWidth) / 2;
+        const y = (canvas.height - drawHeight) / 2;
+
+        ctx.drawImage(video, x, y, drawWidth, drawHeight);
+      } else {
+        // Original behavior for non-iOS devices
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
 
       canvas.toBlob(
         (blob) => {
