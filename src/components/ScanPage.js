@@ -170,6 +170,7 @@ export default function ScanPage() {
   const takePhoto = async () => {
     // ImageCapture API
     if (window.ImageCapture && trackRef.current) {
+      alert("Image capture API is supported");
       try {
         const capture = new ImageCapture(trackRef.current);
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -185,6 +186,9 @@ export default function ScanPage() {
         // фолбэк на canvas ниже
       }
     }
+
+    alert("Image capture API is not supported");
+
     // canvas-фолбэк
     try {
       const video = videoRef.current;
