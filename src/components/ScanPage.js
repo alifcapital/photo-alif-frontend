@@ -161,7 +161,7 @@ export default function ScanPage() {
   };
 
   const takePhoto = async () => {
-    // Сначала получаем доступ к камере с нужным разрешением
+    // Получаем доступ к камере с нужным разрешением
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -172,8 +172,14 @@ export default function ScanPage() {
           }
         });
   
+        // Привязываем видеопоток к видео элементу
         const videoElement = videoRef.current;
         videoElement.srcObject = stream;
+  
+        // Ожидаем, пока видео загрузится и начнется воспроизведение
+        videoElement.onloadedmetadata = () => {
+          videoElement.play(); // Начинаем воспроизведение видео
+        };
   
         // После того как видео начало воспроизводиться, снимаем фото
         const track = stream.getVideoTracks()[0];
@@ -185,6 +191,7 @@ export default function ScanPage() {
           height: 1080  // Ожидаемое разрешение
         };
   
+        // Снимаем фото
         const photo = await capture.grabFrame(settings);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -198,11 +205,17 @@ export default function ScanPage() {
         const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
         setImages((prevImages) => [...prevImages, { url: imageUrl }]);
   
+        // Можно отобразить картинку прямо в UI, добавим её в элемент, если нужно
+        const imgElement = document.createElement('img');
+        imgElement.src = imageUrl;
+        document.body.appendChild(imgElement);  // Это временно, для проверки
+  
       } catch (error) {
         console.error("Error capturing image:", error);
       }
     }
   };
+  
 
   const togglePassport = (i) =>
     setImages((prev) =>
