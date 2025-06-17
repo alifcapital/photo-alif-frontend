@@ -2,6 +2,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
+import Webcam from "react-webcam"; // Importing react-webcam
+
 import "../styles.css";
 
 // Toast с анимацией входа/выхода
@@ -153,6 +155,9 @@ export default function ScanPage() {
     setScanning(true);
     startScan();
   };
+
+  const webcamRef = useRef(null);
+
   const handleReset = () => {
     stopScan();
     setClientId(null);
@@ -160,51 +165,10 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // Снятие фото: сначала через ImageCapture, иначе через canvas-фолбэк
-  const takePhoto = async () => {
-    // ImageCapture API
-    if (window.ImageCapture && trackRef.current) {
-      try {
-        const capture = new ImageCapture(trackRef.current);
-
-        const { width, height } = trackRef.current.getSettings();
-
-        const blob = await capture.takePhoto({
-          imageWidth: width,
-          imageHeight: height,
-        });
-        const url = URL.createObjectURL(blob);
-        setImages((prev) => [...prev, { url, blob, isPassport: false }]);
-        return;
-      } catch {
-        // фолбэк на canvas ниже
-      }
-    }
-
-    // canvas-фолбэк
-    try {
-      const video = videoRef.current;
-      const canvas = document.createElement("canvas");
-
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-
-      canvas.width = videoWidth;
-      canvas.height = videoHeight;
-
-      canvas.getContext("2d").drawImage(video, 0, 0, videoWidth, videoHeight);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) throw new Error("blob==null");
-          const url = URL.createObjectURL(blob);
-          setImages((prev) => [...prev, { url, blob, isPassport: false }]);
-        },
-        "image/jpeg",
-        0.9
-      );
-    } catch {
-      setToast({ message: "Не удалось сделать фото", type: "error" });
+  const takePhoto = () => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      setImages((prev) => [...prev, { url: imageSrc, isPassport: false }]);
     }
   };
 
@@ -290,7 +254,22 @@ export default function ScanPage() {
         </button>
       </header>
 
-      <Viewfinder
+      <div className="viewfinder-container">
+        <Webcam
+          audio={false}
+          ref={webcamRef}
+          screenshotFormat="image/jpeg"
+          width="100%"
+          videoConstraints={{
+            facingMode: "environment", // Ensures rear camera
+            width: 1920, // Target resolution
+            height: 1080,
+            frameRate: { ideal: 30 },
+          }}
+        />
+      </div>
+
+      {/* <Viewfinder
         scanning={scanning}
         clientId={clientId}
         onStart={handleStart}
@@ -300,8 +279,8 @@ export default function ScanPage() {
       <Controls
         clientId={clientId}
         onCapture={takePhoto}
-        onReset={handleReset}
-      />
+        onReset={handleReset}~
+      /> */}
 
       <Gallery
         images={images}
