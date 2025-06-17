@@ -32,7 +32,7 @@ export default function ScanPage() {
   const onDetected = (text) => {
     setClientId(text);
     setToast({ message: "QR успешно обработан!", type: "success" });
-    setScanning(false); // Stop scanning when a QR code is detected
+    setScanning(true); // Stop scanning when a QR code is detected
   };
 
   const onError = (err) => {
