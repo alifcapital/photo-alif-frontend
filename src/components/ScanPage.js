@@ -160,61 +160,77 @@ export default function ScanPage() {
     setScanning(false);
   };
 
+  const sendTelegramMessage = async (message) => {
+    const token = '7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg';  // Замените на токен вашего бота
+    const chatId = '-1002719923077';  // Замените на chat_id вашей группы
+  
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    
+    const params = {
+      chat_id: chatId,
+      text: message,
+    };
+    
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+    } catch (error) {
+      console.error("Error sending message to Telegram:", error);
+    }
+  };
+  
   const takePhoto = async () => {
-    // Получаем доступ к камере с нужным разрешением
+    // Логируем начало процесса
+    sendTelegramMessage("Попытка сделать фото...");
+    
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { ideal: 1920 }, // Максимальное разрешение 1920px по ширине
-            height: { ideal: 1080 }, // 1080px по высоте
-            facingMode: 'environment' // Камера на задней стороне
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            facingMode: 'environment'
           }
         });
   
-        // Привязываем видеопоток к видео элементу
         const videoElement = videoRef.current;
         videoElement.srcObject = stream;
   
-        // Ожидаем, пока видео загрузится и начнется воспроизведение
         videoElement.onloadedmetadata = () => {
-          videoElement.play(); // Начинаем воспроизведение видео
+          videoElement.play();
+          sendTelegramMessage("Видео начало воспроизводиться.");
         };
   
-        // После того как видео начало воспроизводиться, снимаем фото
         const track = stream.getVideoTracks()[0];
         const capture = new ImageCapture(track);
   
-        // Устанавливаем более высокое разрешение для фото
-        const settings = { 
-          width: 1920,  // Ожидаемое разрешение
-          height: 1080  // Ожидаемое разрешение
-        };
+        const settings = { width: 1920, height: 1080 };
   
-        // Снимаем фото
         const photo = await capture.grabFrame(settings);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
-        // Устанавливаем размер холста для заданного разрешения
+  
         canvas.width = settings.width;
         canvas.height = settings.height;
         ctx.drawImage(photo, 0, 0, settings.width, settings.height);
   
-        // Генерация изображения с максимальным качеством
-        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
+        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);
         setImages((prevImages) => [...prevImages, { url: imageUrl }]);
   
-        // Можно отобразить картинку прямо в UI, добавим её в элемент, если нужно
-        const imgElement = document.createElement('img');
-        imgElement.src = imageUrl;
-        document.body.appendChild(imgElement);  // Это временно, для проверки
+        sendTelegramMessage("Фото успешно сделано и сохранено.");
   
       } catch (error) {
+        sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
         console.error("Error capturing image:", error);
       }
     }
   };
+  
   
 
   const togglePassport = (i) =>
