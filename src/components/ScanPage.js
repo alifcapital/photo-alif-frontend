@@ -159,7 +159,7 @@ export default function ScanPage() {
     setImages([]);
     setScanning(false);
   };
-  
+
     const sendTelegramMessage = async (message) => {
       const token = '7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg';  // Замените на токен вашего бота
       const chatId = '-1002719923077';  // Замените на chat_id вашей группы
@@ -193,57 +193,65 @@ export default function ScanPage() {
     };
     
     const takePhoto = async () => {
-      // Логируем начало процесса
-      console.log("Попытка сделать фото...");
-      sendTelegramMessage("Попытка сделать фото...");
-      
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              facingMode: 'environment'
-            }
-          });
-    
-          const videoElement = videoRef.current;
-          videoElement.srcObject = stream;
-    
-          videoElement.onloadedmetadata = () => {
-            videoElement.play();
-            console.log("Видео начало воспроизводиться.");
-            sendTelegramMessage("Видео начало воспроизводиться.");
-          };
-    
-          const track = stream.getVideoTracks()[0];
-          const capture = new ImageCapture(track);
-    
-          const settings = { width: 1920, height: 1080 };
-    
-          const photo = await capture.grabFrame(settings);
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-    
-          canvas.width = settings.width;
-          canvas.height = settings.height;
-          ctx.drawImage(photo, 0, 0, settings.width, settings.height);
-    
-          const imageUrl = canvas.toDataURL('image/jpeg', 1.0);
-          setImages((prevImages) => [...prevImages, { url: imageUrl }]);
-    
-          console.log("Фото успешно сделано и сохранено.");
-          sendTelegramMessage("Фото успешно сделано и сохранено.");
-    
-        } catch (error) {
-          console.error("Ошибка при попытке сделать фото:", error);
-          sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+  // Логируем начало процесса
+  console.log("Попытка сделать фото...");
+  sendTelegramMessage("Попытка сделать фото...");
+
+  // Проверяем, поддерживает ли браузер ImageCapture
+  if (!window.ImageCapture) {
+    console.error("ImageCapture не поддерживается в этом браузере.");
+    sendTelegramMessage("Ошибка: ImageCapture не поддерживается в этом браузере.");
+    return;
+  }
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: 'environment'
         }
-      } else {
-        console.error("getUserMedia не поддерживается этим браузером.");
-        sendTelegramMessage("Ошибка: getUserMedia не поддерживается этим браузером.");
-      }
-    };
+      });
+
+      const videoElement = videoRef.current;
+      videoElement.srcObject = stream;
+
+      videoElement.onloadedmetadata = () => {
+        videoElement.play();
+        console.log("Видео начало воспроизводиться.");
+        sendTelegramMessage("Видео начало воспроизводиться.");
+      };
+
+      const track = stream.getVideoTracks()[0];
+      const capture = new ImageCapture(track);
+
+      const settings = { width: 1920, height: 1080 };
+
+      const photo = await capture.grabFrame(settings);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = settings.width;
+      canvas.height = settings.height;
+      ctx.drawImage(photo, 0, 0, settings.width, settings.height);
+
+      const imageUrl = canvas.toDataURL('image/jpeg', 1.0);
+      setImages((prevImages) => [...prevImages, { url: imageUrl }]);
+
+      console.log("Фото успешно сделано и сохранено.");
+      sendTelegramMessage("Фото успешно сделано и сохранено.");
+
+    } catch (error) {
+      console.error("Ошибка при попытке сделать фото:", error);
+      sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+    }
+  } else {
+    console.error("getUserMedia не поддерживается этим браузером.");
+    sendTelegramMessage("Ошибка: getUserMedia не поддерживается этим браузером.");
+  }
+};
+
     
   
 
