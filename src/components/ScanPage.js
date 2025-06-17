@@ -161,17 +161,30 @@ export default function ScanPage() {
   };
 
   const takePhoto = async () => {
-    // ImageCapture API
-    if (window.ImageCapture && trackRef.current) {
+    // Сначала получаем доступ к камере с нужным разрешением
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
-        const capture = new ImageCapture(trackRef.current);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 }, // Максимальное разрешение 1920px по ширине
+            height: { ideal: 1080 }, // 1080px по высоте
+            facingMode: 'environment' // Камера на задней стороне
+          }
+        });
   
-        // Устанавливаем высокое разрешение для iOS и других устройств
+        const videoElement = videoRef.current;
+        videoElement.srcObject = stream;
+  
+        // После того как видео начало воспроизводиться, снимаем фото
+        const track = stream.getVideoTracks()[0];
+        const capture = new ImageCapture(track);
+  
+        // Устанавливаем более высокое разрешение для фото
         const settings = { 
-          width: 1920,  // Более высокое разрешение
-          height: 2560  // Высокое разрешение для четкости текста
+          width: 1920,  // Ожидаемое разрешение
+          height: 1080  // Ожидаемое разрешение
         };
-        
+  
         const photo = await capture.grabFrame(settings);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -181,62 +194,15 @@ export default function ScanPage() {
         canvas.height = settings.height;
         ctx.drawImage(photo, 0, 0, settings.width, settings.height);
   
-        // Преобразуем изображение в черно-белое для улучшения OCR
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-  
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          // Преобразование в оттенки серого
-          const grayscale = 0.3 * r + 0.59 * g + 0.11 * b;
-          data[i] = data[i + 1] = data[i + 2] = grayscale;
-        }
-  
-        ctx.putImageData(imageData, 0, 0);
-  
         // Генерация изображения с максимальным качеством
         const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
         setImages((prevImages) => [...prevImages, { url: imageUrl }]);
-        
+  
       } catch (error) {
         console.error("Error capturing image:", error);
       }
-    } else {
-      // Резервный вариант, если ImageCapture недоступен
-      const videoElement = videoRef.current;
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      // Получаем разрешение текущего видео и устанавливаем размеры холста
-      canvas.width = videoElement.videoWidth * 2;  // Умножаем на 2 для увеличения качества
-      canvas.height = videoElement.videoHeight * 2; 
-      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-      
-      // Преобразуем изображение в черно-белое для улучшения OCR
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-  
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // Преобразование в оттенки серого
-        const grayscale = 0.3 * r + 0.59 * g + 0.11 * b;
-        data[i] = data[i + 1] = data[i + 2] = grayscale;
-      }
-  
-      ctx.putImageData(imageData, 0, 0);
-  
-      // Генерация изображения с максимальным качеством
-      const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
-      setImages((prevImages) => [...prevImages, { url: imageUrl }]);
     }
   };
-  
-  
-  
 
   const togglePassport = (i) =>
     setImages((prev) =>
