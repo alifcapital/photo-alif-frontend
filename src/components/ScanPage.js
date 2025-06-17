@@ -49,6 +49,7 @@ export default function ScanPage() {
     if (scanning) return;
     setScanning(true);
     setIsStarted(true);
+    handleScan();
   };
 
   // Stop scanning and reset state
@@ -147,17 +148,6 @@ export default function ScanPage() {
         .catch((err) => onError(err)); // Catch any scanning errors
     }
   }, []);
-
-  // Continuously scan if scanning is active
-  useEffect(() => {
-    if (scanning) {
-      const interval = setInterval(() => {
-        handleScan();
-      }, 1000); // Check for QR code every 500ms
-
-      return () => clearInterval(interval); // Clean up on component unmount or scanning stop
-    }
-  }, [scanning, handleScan]);
 
   return (
     <div className="scan-page">
