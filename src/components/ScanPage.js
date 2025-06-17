@@ -160,53 +160,50 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // Снятие фото: сначала через ImageCapture, иначе через canvas-фолбэк
   const takePhoto = async () => {
     // ImageCapture API
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
-
-        const { width, height } = trackRef.current.getSettings();
-
-        const blob = await capture.takePhoto({
-          imageWidth: width,
-          imageHeight: height,
-        });
-        const url = URL.createObjectURL(blob);
-        setImages((prev) => [...prev, { url, blob, isPassport: false }]);
-        return;
-      } catch {
-        // фолбэк на canvas ниже
+        
+        // Set resolution constraints for high-quality capture (for iOS and other devices)
+        const photo = await capture.grabFrame();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas dimensions based on the desired resolution
+        const desiredWidth = 1920;  // For example, 1920px for width (adjust as necessary)
+        const desiredHeight = 1080; // For example, 1080px for height (adjust as necessary)
+        
+        // Scale image to desired resolution
+        canvas.width = desiredWidth;
+        canvas.height = desiredHeight;
+        ctx.drawImage(photo, 0, 0, desiredWidth, desiredHeight);
+        
+        // Create a high-quality image URL from the canvas
+        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 ensures maximum quality
+        setImages((prevImages) => [...prevImages, { url: imageUrl }]);
+        
+      } catch (error) {
+        console.error("Error capturing image:", error);
       }
-    }
-
-    // canvas-фолбэк
-    try {
-      const video = videoRef.current;
-      const canvas = document.createElement("canvas");
-
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-
-      canvas.width = videoWidth;
-      canvas.height = videoHeight;
-
-      canvas.getContext("2d").drawImage(video, 0, 0, videoWidth, videoHeight);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) throw new Error("blob==null");
-          const url = URL.createObjectURL(blob);
-          setImages((prev) => [...prev, { url, blob, isPassport: false }]);
-        },
-        "image/jpeg",
-        0.9
-      );
-    } catch {
-      setToast({ message: "Не удалось сделать фото", type: "error" });
+    } else {
+      // Fallback to using canvas for non-ImageCapture browsers
+      const videoElement = videoRef.current;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Capture the current video frame and draw it on the canvas
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      
+      // Create a high-quality image URL from the canvas
+      const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 ensures maximum quality
+      setImages((prevImages) => [...prevImages, { url: imageUrl }]);
     }
   };
+  
 
   const togglePassport = (i) =>
     setImages((prev) =>
