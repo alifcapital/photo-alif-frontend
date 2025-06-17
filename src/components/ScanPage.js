@@ -168,8 +168,8 @@ export default function ScanPage() {
   
         // Устанавливаем высокое разрешение для iOS и других устройств
         const settings = { 
-          width: 3840,  // Более высокое разрешение, чем 1920x1080
-          height: 2160  // 4K разрешение
+          width: 1920,  // Более высокое разрешение
+          height: 2560  // Высокое разрешение для четкости текста
         };
         
         const photo = await capture.grabFrame(settings);
@@ -180,7 +180,22 @@ export default function ScanPage() {
         canvas.width = settings.width;
         canvas.height = settings.height;
         ctx.drawImage(photo, 0, 0, settings.width, settings.height);
-        
+  
+        // Преобразуем изображение в черно-белое для улучшения OCR
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+  
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          // Преобразование в оттенки серого
+          const grayscale = 0.3 * r + 0.59 * g + 0.11 * b;
+          data[i] = data[i + 1] = data[i + 2] = grayscale;
+        }
+  
+        ctx.putImageData(imageData, 0, 0);
+  
         // Генерация изображения с максимальным качеством
         const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
         setImages((prevImages) => [...prevImages, { url: imageUrl }]);
@@ -199,11 +214,27 @@ export default function ScanPage() {
       canvas.height = videoElement.videoHeight * 2; 
       ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
       
+      // Преобразуем изображение в черно-белое для улучшения OCR
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+  
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // Преобразование в оттенки серого
+        const grayscale = 0.3 * r + 0.59 * g + 0.11 * b;
+        data[i] = data[i + 1] = data[i + 2] = grayscale;
+      }
+  
+      ctx.putImageData(imageData, 0, 0);
+  
       // Генерация изображения с максимальным качеством
       const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
       setImages((prevImages) => [...prevImages, { url: imageUrl }]);
     }
   };
+  
   
   
 
