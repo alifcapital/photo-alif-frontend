@@ -26,10 +26,12 @@ function useQrScanner(onDetected, onError) {
         readerRef.current = new BrowserMultiFormatReader();
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { min: 1280, ideal: 1920, max: 4096 },
-            height: { min: 720, ideal: 1440, max: 2160 },
-            frameRate: { min: 30, ideal: 60 },
-            facingMode: "environment",
+            width: { ideal: 1920, max: 4096 },
+            height: { ideal: 1080, max: 2160 },
+            frameRate: { ideal: 60 },
+            facingMode: {
+              ideal: "environment",
+            },
           },
         });
         streamRef.current = stream;
@@ -184,9 +186,14 @@ export default function ScanPage() {
       const video = videoRef.current;
       const canvas = document.createElement("canvas");
 
-      canvas.width = 1920;
-      canvas.height = 1440;
-      canvas.getContext("2d").drawImage(video, 0, 0, 1920, 1440);
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
+
+      canvas.getContext("2d").drawImage(video, 0, 0, videoWidth, videoHeight);
+
       canvas.toBlob(
         (blob) => {
           if (!blob) throw new Error("blob==null");
@@ -194,7 +201,7 @@ export default function ScanPage() {
           setImages((prev) => [...prev, { url, blob, isPassport: false }]);
         },
         "image/jpeg",
-        1
+        0.9
       );
     } catch {
       setToast({ message: "Не удалось сделать фото", type: "error" });
