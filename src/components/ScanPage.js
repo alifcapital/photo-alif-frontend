@@ -149,6 +149,16 @@ export default function ScanPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (isStarted) {
+      const interval = setInterval(() => {
+        handleScan();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isStarted, handleScan]);
+
   return (
     <div className="scan-page">
       {toast && (
