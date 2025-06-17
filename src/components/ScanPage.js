@@ -20,6 +20,7 @@ export default function ScanPage() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
+  const [isStarted, setIsStarted] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -32,7 +33,6 @@ export default function ScanPage() {
   const onDetected = (text) => {
     setClientId(text);
     setToast({ message: "QR успешно обработан!", type: "success" });
-    setScanning(true); // Stop scanning when a QR code is detected
   };
 
   const onError = (err) => {
@@ -41,12 +41,14 @@ export default function ScanPage() {
     } else {
       setToast({ message: "Ошибка сканирования", type: "error" });
     }
+    setScanning(false);
   };
 
   // Start scanning
   const handleStart = () => {
     if (scanning) return;
     setScanning(true);
+    setIsStarted(true);
   };
 
   // Stop scanning and reset state
@@ -54,6 +56,7 @@ export default function ScanPage() {
     setClientId(null);
     setImages([]);
     setScanning(false);
+    setIsStarted(false);
   };
 
   // Take photo using react-webcam
@@ -175,7 +178,7 @@ export default function ScanPage() {
 
       {/* Viewfinder and Webcam Stream */}
       <div className="viewfinder-container">
-        {scanning && (
+        {isStarted && (
           <Webcam
             audio={false}
             ref={webcamRef}
