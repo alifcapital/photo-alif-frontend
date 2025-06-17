@@ -205,8 +205,8 @@ export default function ScanPage() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: 2048 },  // Запрашиваем 2048px по ширине
+            height: { ideal: 1536 },  // Запрашиваем 1536px по высоте
             facingMode: 'environment',
           }
         });
