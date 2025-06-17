@@ -165,44 +165,46 @@ export default function ScanPage() {
     if (window.ImageCapture && trackRef.current) {
       try {
         const capture = new ImageCapture(trackRef.current);
+  
+        // Устанавливаем высокое разрешение для iOS и других устройств
+        const settings = { 
+          width: 3840,  // Более высокое разрешение, чем 1920x1080
+          height: 2160  // 4K разрешение
+        };
         
-        // Set resolution constraints for high-quality capture (for iOS and other devices)
-        const photo = await capture.grabFrame();
+        const photo = await capture.grabFrame(settings);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Set canvas dimensions based on the desired resolution
-        const desiredWidth = 1920;  // For example, 1920px for width (adjust as necessary)
-        const desiredHeight = 1080; // For example, 1080px for height (adjust as necessary)
+        // Устанавливаем размер холста для заданного разрешения
+        canvas.width = settings.width;
+        canvas.height = settings.height;
+        ctx.drawImage(photo, 0, 0, settings.width, settings.height);
         
-        // Scale image to desired resolution
-        canvas.width = desiredWidth;
-        canvas.height = desiredHeight;
-        ctx.drawImage(photo, 0, 0, desiredWidth, desiredHeight);
-        
-        // Create a high-quality image URL from the canvas
-        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 ensures maximum quality
+        // Генерация изображения с максимальным качеством
+        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
         setImages((prevImages) => [...prevImages, { url: imageUrl }]);
         
       } catch (error) {
         console.error("Error capturing image:", error);
       }
     } else {
-      // Fallback to using canvas for non-ImageCapture browsers
+      // Резервный вариант, если ImageCapture недоступен
       const videoElement = videoRef.current;
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       
-      // Capture the current video frame and draw it on the canvas
-      canvas.width = videoElement.videoWidth;
-      canvas.height = videoElement.videoHeight;
+      // Получаем разрешение текущего видео и устанавливаем размеры холста
+      canvas.width = videoElement.videoWidth * 2;  // Умножаем на 2 для увеличения качества
+      canvas.height = videoElement.videoHeight * 2; 
       ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
       
-      // Create a high-quality image URL from the canvas
-      const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 ensures maximum quality
+      // Генерация изображения с максимальным качеством
+      const imageUrl = canvas.toDataURL('image/jpeg', 1.0);  // 1.0 для максимального качества
       setImages((prevImages) => [...prevImages, { url: imageUrl }]);
     }
   };
+  
   
 
   const togglePassport = (i) =>
