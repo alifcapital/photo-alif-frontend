@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
 // Toast с анимацией входа/выхода
 function Toast({ message, type = "info", onClose }) {
   useEffect(() => {
@@ -26,18 +24,12 @@ function useQrScanner(onDetected, onError) {
     if (!videoRef.current.srcObject) {
       try {
         readerRef.current = new BrowserMultiFormatReader();
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "environment",
             width: { min: 1280, ideal: 1920, max: 4096 },
-            height: { min: 720, ideal: 1080, max: 2160 },
+            height: { min: 720, ideal: 1440, max: 2160 },
             frameRate: { min: 30, ideal: 60 },
-            ...(isIOS && {
-              aspectRatio: { ideal: 1.777777778 },
-              zoom: { ideal: 1 },
-            }),
+            facingMode: "environment",
           },
         });
         streamRef.current = stream;
@@ -170,14 +162,14 @@ export default function ScanPage() {
   const takePhoto = async () => {
     // ImageCapture API
     if (window.ImageCapture && trackRef.current) {
-      alert("Image capture API is supported");
       try {
         const capture = new ImageCapture(trackRef.current);
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+        const { width, height } = trackRef.current.getSettings();
+
         const blob = await capture.takePhoto({
-          imageWidth: isIOS ? 3840 : 1920, // 4K for iOS, 1080p for others
-          imageHeight: isIOS ? 2160 : 1080, // 4K for iOS, 1080p for others
-          fillLightMode: "auto",
+          imageWidth: width,
+          imageHeight: height,
         });
         const url = URL.createObjectURL(blob);
         setImages((prev) => [...prev, { url, blob, isPassport: false }]);
@@ -187,46 +179,14 @@ export default function ScanPage() {
       }
     }
 
-    alert("Image capture API is not supported");
-
     // canvas-фолбэк
     try {
       const video = videoRef.current;
       const canvas = document.createElement("canvas");
 
-      // Set dimensions based on device
-      canvas.width = isIOS ? 3840 : video.videoWidth; // 4K for iOS, native for others
-      canvas.height = isIOS ? 2160 : video.videoHeight; // 4K for iOS, native for others
-
-      const ctx = canvas.getContext("2d");
-      // Enable image smoothing for better quality
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      if (isIOS) {
-        // Draw image maintaining aspect ratio for iOS
-        const aspectRatio = video.videoWidth / video.videoHeight;
-        let drawWidth = canvas.width;
-        let drawHeight = canvas.height;
-
-        if (aspectRatio > 1) {
-          // Landscape
-          drawHeight = drawWidth / aspectRatio;
-        } else {
-          // Portrait
-          drawWidth = drawHeight * aspectRatio;
-        }
-
-        // Center the image
-        const x = (canvas.width - drawWidth) / 2;
-        const y = (canvas.height - drawHeight) / 2;
-
-        ctx.drawImage(video, x, y, drawWidth, drawHeight);
-      } else {
-        // Original behavior for non-iOS devices
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      }
-
+      canvas.width = 1920;
+      canvas.height = 1440;
+      canvas.getContext("2d").drawImage(video, 0, 0, 1920, 1440);
       canvas.toBlob(
         (blob) => {
           if (!blob) throw new Error("blob==null");
@@ -234,7 +194,7 @@ export default function ScanPage() {
           setImages((prev) => [...prev, { url, blob, isPassport: false }]);
         },
         "image/jpeg",
-        0.95 // Increase quality to 0.95 (95%)
+        1
       );
     } catch {
       setToast({ message: "Не удалось сделать фото", type: "error" });
