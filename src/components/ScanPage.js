@@ -159,78 +159,92 @@ export default function ScanPage() {
     setImages([]);
     setScanning(false);
   };
-
-  const sendTelegramMessage = async (message) => {
-    const token = '7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg';  // Замените на токен вашего бота
-    const chatId = '-1002719923077';  // Замените на chat_id вашей группы
   
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const sendTelegramMessage = async (message) => {
+      const token = '7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg';  // Замените на токен вашего бота
+      const chatId = '-1002719923077';  // Замените на chat_id вашей группы
     
-    const params = {
-      chat_id: chatId,
-      text: message,
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      
+      const params = {
+        chat_id: chatId,
+        text: message,
+      };
+      
+      try {
+        console.log("Отправка сообщения в Telegram:", message);  // Логируем перед отправкой
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(params),
+        });
+    
+        const data = await response.json();
+        console.log("Ответ от Telegram:", data);  // Логируем ответ от Telegram API
+    
+        if (!response.ok) {
+          console.error("Ошибка при отправке сообщения в Telegram:", data);
+        }
+      } catch (error) {
+        console.error("Error sending message to Telegram:", error);
+      }
     };
     
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(params),
-      });
-    } catch (error) {
-      console.error("Error sending message to Telegram:", error);
-    }
-  };
-  
-  const takePhoto = async () => {
-    // Логируем начало процесса
-    sendTelegramMessage("Попытка сделать фото...");
+    const takePhoto = async () => {
+      // Логируем начало процесса
+      console.log("Попытка сделать фото...");
+      sendTelegramMessage("Попытка сделать фото...");
+      
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              facingMode: 'environment'
+            }
+          });
     
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            facingMode: 'environment'
-          }
-        });
-  
-        const videoElement = videoRef.current;
-        videoElement.srcObject = stream;
-  
-        videoElement.onloadedmetadata = () => {
-          videoElement.play();
-          sendTelegramMessage("Видео начало воспроизводиться.");
-        };
-  
-        const track = stream.getVideoTracks()[0];
-        const capture = new ImageCapture(track);
-  
-        const settings = { width: 1920, height: 1080 };
-  
-        const photo = await capture.grabFrame(settings);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-  
-        canvas.width = settings.width;
-        canvas.height = settings.height;
-        ctx.drawImage(photo, 0, 0, settings.width, settings.height);
-  
-        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);
-        setImages((prevImages) => [...prevImages, { url: imageUrl }]);
-  
-        sendTelegramMessage("Фото успешно сделано и сохранено.");
-  
-      } catch (error) {
-        sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
-        console.error("Error capturing image:", error);
+          const videoElement = videoRef.current;
+          videoElement.srcObject = stream;
+    
+          videoElement.onloadedmetadata = () => {
+            videoElement.play();
+            console.log("Видео начало воспроизводиться.");
+            sendTelegramMessage("Видео начало воспроизводиться.");
+          };
+    
+          const track = stream.getVideoTracks()[0];
+          const capture = new ImageCapture(track);
+    
+          const settings = { width: 1920, height: 1080 };
+    
+          const photo = await capture.grabFrame(settings);
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+    
+          canvas.width = settings.width;
+          canvas.height = settings.height;
+          ctx.drawImage(photo, 0, 0, settings.width, settings.height);
+    
+          const imageUrl = canvas.toDataURL('image/jpeg', 1.0);
+          setImages((prevImages) => [...prevImages, { url: imageUrl }]);
+    
+          console.log("Фото успешно сделано и сохранено.");
+          sendTelegramMessage("Фото успешно сделано и сохранено.");
+    
+        } catch (error) {
+          console.error("Ошибка при попытке сделать фото:", error);
+          sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+        }
+      } else {
+        console.error("getUserMedia не поддерживается этим браузером.");
+        sendTelegramMessage("Ошибка: getUserMedia не поддерживается этим браузером.");
       }
-    }
-  };
-  
+    };
+    
   
 
   const togglePassport = (i) =>
