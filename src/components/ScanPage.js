@@ -32,6 +32,7 @@ export default function ScanPage() {
   // Handling the QR scanner detection
   const onDetected = (text) => {
     setClientId(text);
+    alert(text);
     setToast({ message: "QR успешно обработан!", type: "success" });
   };
 
@@ -150,14 +151,14 @@ export default function ScanPage() {
   }, []);
 
   useEffect(() => {
-    if (isStarted) {
+    if (isStarted && !clientId) {
       const interval = setInterval(() => {
         handleScan();
       }, 5000);
 
       return () => clearInterval(interval);
     }
-  }, [isStarted, handleScan]);
+  }, [isStarted, handleScan, clientId]);
 
   return (
     <div className="scan-page">
