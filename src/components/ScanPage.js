@@ -191,75 +191,75 @@ export default function ScanPage() {
     }
   };
 
- const takePhoto = async () => {
-  console.log("Попытка сделать фото...");
-  sendTelegramMessage("Попытка сделать фото...");
+  const takePhoto = async () => {
+    console.log("Попытка сделать фото...");
+    sendTelegramMessage("Попытка сделать фото...");
 
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    console.error("getUserMedia не поддерживается этим браузером.");
-    sendTelegramMessage(
-      "Ошибка: getUserMedia не поддерживается этим браузером."
-    );
-    return;
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 2048 },
-        height: { ideal: 1536 },
-        facingMode: "environment",
-      },
-    });
-
-    const videoElement = videoRef.current;
-    videoElement.srcObject = stream;
-
-    // Ждём, пока видео загрузится
-    await new Promise((resolve) => {
-      videoElement.onloadedmetadata = () => {
-        videoElement.play();
-        console.log("Видео начало воспроизводиться.");
-        sendTelegramMessage("Видео начало воспроизводиться.");
-      };
-      videoElement.onplay = () => resolve();
-    });
-
-    // Ждём 300 мс чтобы автоэкспозиция сработала
-    await new Promise((res) => setTimeout(res, 300));
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    const videoWidth = videoElement.videoWidth;
-    const videoHeight = videoElement.videoHeight;
-    if (videoWidth === 0 || videoHeight === 0) {
-      throw new Error("Невозможно захватить видео, размеры равны 0");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error("getUserMedia не поддерживается этим браузером.");
+      sendTelegramMessage(
+        "Ошибка: getUserMedia не поддерживается этим браузером."
+      );
+      return;
     }
 
-    canvas.width = videoWidth;
-    canvas.height = videoHeight;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 2048 },
+          height: { ideal: 1536 },
+          facingMode: "environment",
+        },
+      });
 
-    ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
+      const videoElement = videoRef.current;
+      videoElement.srcObject = stream;
 
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        console.error("Ошибка: blob не был создан.");
-        sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
-        return;
+      // Ждём, пока видео загрузится
+      await new Promise((resolve) => {
+        videoElement.onloadedmetadata = () => {
+          videoElement.play();
+          console.log("Видео начало воспроизводиться.");
+          sendTelegramMessage("Видео начало воспроизводиться.");
+        };
+        videoElement.onplay = () => resolve();
+      });
+
+      // Ждём 300 мс чтобы автоэкспозиция сработала
+      await new Promise((res) => setTimeout(res, 300));
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const videoWidth = videoElement.videoWidth;
+      const videoHeight = videoElement.videoHeight;
+      if (videoWidth === 0 || videoHeight === 0) {
+        throw new Error("Невозможно захватить видео, размеры равны 0");
       }
 
-      setImages((prevImages) => [...prevImages, { blob }]);
-      console.log("Фото успешно сделано и сохранено.");
-      sendTelegramMessage("Фото успешно сделано и сохранено.");
-    }, "image/jpeg");
-  } catch (error) {
-    console.error("Ошибка при попытке сделать фото:", error);
-    sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
-  }
-};
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
 
+      ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
 
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.error("Ошибка: blob не был создан.");
+          sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+
+        setImages((prevImages) => [...prevImages, { blob, url }]);
+        console.log("Фото успешно сделано и сохранено.");
+        sendTelegramMessage("Фото успешно сделано и сохранено.");
+      }, "image/jpeg");
+    } catch (error) {
+      console.error("Ошибка при попытке сделать фото:", error);
+      sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+    }
+  };
 
   const togglePassport = (i) =>
     setImages((prev) =>
@@ -270,56 +270,55 @@ export default function ScanPage() {
     setImages((prev) => prev.filter((_, j) => j !== i));
   };
 
-const uploadAll = async () => {
-  setUploading(true);
-  setDoneCount(0);
+  const uploadAll = async () => {
+    setUploading(true);
+    setDoneCount(0);
 
-  try {
-    for (let i = 0; i < images.length; i++) {
-      const { blob, isPassport } = images[i];
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const { blob, isPassport } = images[i];
 
-      // Отправляем blob напрямую, а не URL
-      const form = new FormData();
-      form.append("client_id", clientId);
-      form.append("image", blob, `image_${i}.jpg`);  // Просто добавляем Blob
-      form.append("is_passport", isPassport ? "1" : "0");
+        // Отправляем blob напрямую, а не URL
+        const form = new FormData();
+        form.append("client_id", clientId);
+        form.append("image", blob, `image_${i}.jpg`); // Просто добавляем Blob
+        form.append("is_passport", isPassport ? "1" : "0");
 
-      const res = await fetch(`${API}/api/upload-image`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: form,
-      });
-
-      const responseData = await res.json();
-      console.log("Ответ от сервера:", responseData);
-
-      if (res.ok) {
-        setDoneCount(i + 1);
-      } else {
-        console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
-        setToast({
-          message: `Фото ${i + 1} не загрузилось`,
-          type: "error",
+        const res = await fetch(`${API}/api/upload-image`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: form,
         });
+
+        const responseData = await res.json();
+        console.log("Ответ от сервера:", responseData);
+
+        if (res.ok) {
+          setDoneCount(i + 1);
+        } else {
+          console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
+          setToast({
+            message: `Фото ${i + 1} не загрузилось`,
+            type: "error",
+          });
+        }
       }
+
+      setToast({ message: "Все фото загружены!", type: "success" });
+      setImages([]); // Очистка списка после загрузки
+      stopScan();
+    } catch (error) {
+      console.error("Ошибка при загрузке всех фотографий:", error);
+      setToast({
+        message: "Ошибка при загрузке фотографий",
+        type: "error",
+      });
+    } finally {
+      setUploading(false);
     }
-
-    setToast({ message: "Все фото загружены!", type: "success" });
-    setImages([]); // Очистка списка после загрузки
-    stopScan();
-  } catch (error) {
-    console.error("Ошибка при загрузке всех фотографий:", error);
-    setToast({
-      message: "Ошибка при загрузке фотографий",
-      type: "error",
-    });
-  } finally {
-    setUploading(false);
-  }
-};
-
+  };
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
