@@ -206,20 +206,21 @@ export default function ScanPage() {
     }
 
     try {
+      const videoConstraints = isIOS
+        ? {
+            width: { ideal: 2048 },
+            height: { ideal: 1536 },
+          }
+        : {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 15 },
+          };
+
+      alert(JSON.stringify(videoConstraints));
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          ...(isIOS
-            ? {
-                width: { ideal: 2048 },
-                height: { ideal: 1536 },
-              }
-            : {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                frameRate: { ideal: 15 },
-              }),
-        },
+        video: videoConstraints,
       });
 
       const videoElement = videoRef.current;
