@@ -247,7 +247,19 @@ export default function ScanPage() {
 
       // Получаем изображение
       const imageUrl = canvas.toDataURL("image/jpeg", 1.0);
-      setImages((prevImages) => [...prevImages, { url: imageUrl }]);
+
+      // Convert base64 to Blob
+      const byteString = atob(imageUrl.split(",")[1]); // Decode base64 string
+      const arrayBuffer = new ArrayBuffer(byteString.length);
+      const uintArray = new Uint8Array(arrayBuffer);
+
+      for (let i = 0; i < uintArray.length; i++) {
+        uintArray[i] = byteString.charCodeAt(i);
+      }
+
+      const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+
+      setImages((prevImages) => [...prevImages, { url: imageUrl, blob }]);
 
       console.log("Фото успешно сделано и сохранено.");
       sendTelegramMessage("Фото успешно сделано и сохранено.");
