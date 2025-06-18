@@ -211,7 +211,16 @@ export default function ScanPage() {
             width: { ideal: 2048 },
             height: { ideal: 1536 },
           }
-        : true;
+        : {
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 },
+            resizeMode: "crop-and-scale",
+            advanced: [
+              { exposureMode: "continuous" },
+              { focusMode: "continuous" },
+              { whiteBalanceMode: "continuous" },
+            ],
+          };
 
       alert(JSON.stringify(videoConstraints));
 
