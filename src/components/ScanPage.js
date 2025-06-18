@@ -211,11 +211,7 @@ export default function ScanPage() {
             width: { ideal: 2048 },
             height: { ideal: 1536 },
           }
-        : {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 15 },
-          };
+        : true;
 
       alert(JSON.stringify(videoConstraints));
 
