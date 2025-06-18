@@ -206,8 +206,8 @@ export default function ScanPage() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        width: { ideal: 2048 }, // Запрашиваем 2048px по ширине
-        height: { ideal: 1536 }, // Запрашиваем 1536px по высоте
+        width: { ideal: 2048 },
+        height: { ideal: 1536 },
         facingMode: "environment",
       },
     });
@@ -215,23 +215,22 @@ export default function ScanPage() {
     const videoElement = videoRef.current;
     videoElement.srcObject = stream;
 
-    // Ожидаем, пока видео загрузится и начнёт воспроизводиться
-    videoElement.onloadedmetadata = () => {
-      videoElement.play();
-      console.log("Видео начало воспроизводиться.");
-      sendTelegramMessage("Видео начало воспроизводиться.");
-    };
-
-    // Ждём, пока видео начнёт воспроизводиться
+    // Ждём, пока видео загрузится
     await new Promise((resolve) => {
+      videoElement.onloadedmetadata = () => {
+        videoElement.play();
+        console.log("Видео начало воспроизводиться.");
+        sendTelegramMessage("Видео начало воспроизводиться.");
+      };
       videoElement.onplay = () => resolve();
     });
 
-    // Создаём canvas и захватываем кадр
+    // Ждём 300 мс чтобы автоэкспозиция сработала
+    await new Promise((res) => setTimeout(res, 300));
+
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
-    // Проверяем размеры видео, чтобы убедиться, что оно стабильно
     const videoWidth = videoElement.videoWidth;
     const videoHeight = videoElement.videoHeight;
     if (videoWidth === 0 || videoHeight === 0) {
@@ -241,29 +240,25 @@ export default function ScanPage() {
     canvas.width = videoWidth;
     canvas.height = videoHeight;
 
-    // Рисуем видео в canvas
     ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
 
-    // Получаем изображение в формате Blob
-canvas.toBlob((blob) => {
-  if (!blob) {
-    console.error("Ошибка: blob не был создан.");
-    sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
-    return;
-  }
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        console.error("Ошибка: blob не был создан.");
+        sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
+        return;
+      }
 
-  // Здесь сохраняем Blob напрямую без создания URL
-  setImages((prevImages) => [...prevImages, { blob }]);
-
-  console.log("Фото успешно сделано и сохранено.");
-  sendTelegramMessage("Фото успешно сделано и сохранено.");
-}, "image/jpeg");
-
+      setImages((prevImages) => [...prevImages, { blob }]);
+      console.log("Фото успешно сделано и сохранено.");
+      sendTelegramMessage("Фото успешно сделано и сохранено.");
+    }, "image/jpeg");
   } catch (error) {
     console.error("Ошибка при попытке сделать фото:", error);
     sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
   }
 };
+
 
 
   const togglePassport = (i) =>
