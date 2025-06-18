@@ -305,9 +305,16 @@ const uploadAll = async () => {
       form.append("image", blob, `image_${i}.jpg`); // Преобразуем в blob
       form.append("is_passport", isPassport ? "1" : "0");
 
-      console.log(`Загрузка фото ${i + 1}, клиентский ID: ${clientId}`);
+      // Логируем запрос перед отправкой
+      console.log("Отправка запроса на сервер:");
+      console.log("URL:", `${API}/api/upload-image`);
+      console.log("Request headers:", {
+        Authorization: `Bearer ${token}`,
+      });
+      console.log("Form data:", form);
 
       try {
+        // Отправляем запрос
         const res = await fetch(`${API}/api/upload-image`, {
           method: "POST",
           headers: {
@@ -316,11 +323,13 @@ const uploadAll = async () => {
           body: form,
         });
 
-        // Логируем ответ сервера
+        // Логируем ответ от сервера
         const responseData = await res.json();
         console.log("Ответ от сервера:", responseData);
 
+        // Логируем статус ответа
         if (res.ok) {
+          console.log(`Фото ${i + 1} успешно загружено!`);
           setDoneCount(i + 1);
         } else {
           console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
