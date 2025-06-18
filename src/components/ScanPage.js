@@ -259,6 +259,12 @@ export default function ScanPage() {
 
       const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
 
+      if (!blob) {
+        console.error("Ошибка: blob не был создан.");
+        sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
+        return;
+      }
+
       setImages((prevImages) => [...prevImages, { url: imageUrl, blob }]);
 
       console.log("Фото успешно сделано и сохранено.");
