@@ -1,4 +1,3 @@
-// src/components/ScanPage.js
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
@@ -160,38 +159,37 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-const sendTelegramMessage = async (message) => {
-  const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
-  const chatId = "-1002719923077"; // Замените на chat_id вашей группы
+  const sendTelegramMessage = async (message) => {
+    const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
+    const chatId = "-1002719923077"; // Замените на chat_id вашей группы
 
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
-  const params = {
-    chat_id: chatId,
-    text: message,
-  };
+    const params = {
+      chat_id: chatId,
+      text: message,
+    };
 
-  try {
-    console.log("Отправка сообщения в Telegram:", message); // Логируем перед отправкой
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    });
+    try {
+      console.log("Отправка сообщения в Telegram с текстом:", message); // Логируем перед отправкой
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(params),
+      });
 
-    const data = await response.json();
-    console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
+      const data = await response.json();
+      console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
 
-    if (!response.ok) {
-      console.error("Ошибка при отправке сообщения в Telegram:", data);
+      if (!response.ok) {
+        console.error("Ошибка при отправке сообщения в Telegram:", data);
+      }
+    } catch (error) {
+      console.error("Ошибка при отправке сообщения в Telegram:", error);
     }
-  } catch (error) {
-    console.error("Error sending message to Telegram:", error);
-  }
-};
-
+  };
 
   const takePhoto = async () => {
     console.log("Попытка сделать фото...");
@@ -285,93 +283,83 @@ const sendTelegramMessage = async (message) => {
     setImages((prev) => prev.filter((_, j) => j !== i));
   };
 
-  // Последовательная загрузка фото
-const uploadAll = async () => {
-  setUploading(true);
-  setDoneCount(0);
+  const uploadAll = async () => {
+    setUploading(true);
+    setDoneCount(0);
 
-  try {
-    // Проходим по всем изображениям и загружаем
-    for (let i = 0; i < images.length; i++) {
-      const { url, isPassport } = images[i];
-      
-      // Преобразуем изображение в blob (если это необходимо)
-      const response = await fetch(url);
-      const blob = await response.blob();
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const { url, isPassport } = images[i];
 
-      console.log(`Загружаем фото ${i + 1}:`, blob); // Логируем перед отправкой
+        const response = await fetch(url);
+        const blob = await response.blob();
 
-      const form = new FormData();
-      form.append("client_id", clientId);
-      form.append("image", blob, `image_${i}.jpg`); // Преобразуем в blob
-      form.append("is_passport", isPassport ? "1" : "0");
+        console.log(`Загружаем фото ${i + 1}:`, blob); // Логируем перед отправкой
 
-      // Логируем запрос перед отправкой
-      const requestDetails = {
-        url: `${API}/api/upload-image`,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: form,
-      };
+        const form = new FormData();
+        form.append("client_id", clientId);
+        form.append("image", blob, `image_${i}.jpg`); // Преобразуем в blob
+        form.append("is_passport", isPassport ? "1" : "0");
 
-      console.log("Отправка запроса на сервер:", requestDetails);
-
-      // Отправляем запрос
-      try {
-        const res = await fetch(`${API}/api/upload-image`, {
-          method: "POST",
+        // Логируем запрос перед отправкой
+        const requestDetails = {
+          url: `${API}/api/upload-image`,
           headers: {
             Authorization: `Bearer ${token}`,
           },
           body: form,
-        });
+        };
 
-        // Логируем ответ от сервера
-        const responseData = await res.json();
+        console.log("Отправка запроса на сервер:", requestDetails);
 
-        console.log("Ответ от сервера:", responseData);
+        try {
+          const res = await fetch(`${API}/api/upload-image`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: form,
+          });
 
-        // Отправляем запрос и ответ в Telegram
-        await sendTelegramMessage(`Request: ${JSON.stringify(requestDetails, null, 2)}\nResponse: ${JSON.stringify(responseData, null, 2)}`);
+          const responseData = await res.json();
+          console.log("Ответ от сервера:", responseData);
 
-        // Логируем статус ответа
-        if (res.ok) {
-          console.log(`Фото ${i + 1} успешно загружено!`);
+          // Отправляем запрос и ответ в Telegram
+          await sendTelegramMessage(`Request: ${JSON.stringify(requestDetails, null, 2)}\nResponse: ${JSON.stringify(responseData, null, 2)}`);
+
+          if (res.ok) {
+            setDoneCount(i + 1);
+          } else {
+            console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
+            setToast({
+              message: `Фото ${i + 1} не загрузилось`,
+              type: "error",
+            });
+          }
+        } catch (error) {
           setDoneCount(i + 1);
-        } else {
-          console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
           setToast({
-            message: `Фото ${i + 1} не загрузилось`,
+            message: `Ошибка загрузки фото ${i + 1}`,
             type: "error",
           });
+          console.error(`Ошибка загрузки фото ${i + 1}:`, error);
         }
-      } catch (error) {
-        setDoneCount(i + 1);
-        setToast({
-          message: `Ошибка загрузки фото ${i + 1}`,
-          type: "error",
-        });
-        console.error(`Ошибка загрузки фото ${i + 1}:`, error);
       }
+
+      setToast({ message: "Все фото загружены!", type: "success" });
+      images.forEach((img) => URL.revokeObjectURL(img.url));
+      setImages([]); // Очистка списка после загрузки
+      stopScan();
+    } catch (error) {
+      console.error("Ошибка при загрузке всех фотографий:", error);
+      setToast({
+        message: "Ошибка при загрузке фотографий",
+        type: "error",
+      });
+    } finally {
+      setUploading(false);
     }
-
-    setToast({ message: "Все фото загружены!", type: "success" });
-    images.forEach((img) => URL.revokeObjectURL(img.url));
-    setImages([]); // Очистка списка после загрузки
-    stopScan();
-  } catch (error) {
-    console.error("Ошибка при загрузке всех фотографий:", error);
-    setToast({
-      message: "Ошибка при загрузке фотографий",
-      type: "error",
-    });
-  } finally {
-    setUploading(false);
-  }
-};
-
-
+  };
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
