@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import "../styles.css";
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 // Toast с анимацией входа/выхода
 function Toast({ message, type = "info", onClose }) {
   useEffect(() => {
@@ -132,7 +134,7 @@ export default function ScanPage() {
   const API = process.env.REACT_APP_API_URL || "";
   const token = localStorage.getItem("authToken");
 
-  const { videoRef, startScan, stopScan, trackRef } = useQrScanner(
+  const { videoRef, startScan, stopScan } = useQrScanner(
     (text) => {
       setClientId(text);
       setToast({ message: "QR успешно обработан!", type: "success" });
@@ -206,9 +208,17 @@ export default function ScanPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 2048 },
-          height: { ideal: 1536 },
           facingMode: "environment",
+          ...(isIOS
+            ? {
+                width: { ideal: 2048 },
+                height: { ideal: 1536 },
+              }
+            : {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 15 },
+              }),
         },
       });
 
