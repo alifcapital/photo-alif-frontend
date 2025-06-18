@@ -316,12 +316,14 @@ const uploadAll = async () => {
           body: form,
         });
 
+        // Логируем ответ сервера
         const responseData = await res.json();
         console.log("Ответ от сервера:", responseData);
 
         if (res.ok) {
           setDoneCount(i + 1);
         } else {
+          console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
           setToast({
             message: `Фото ${i + 1} не загрузилось`,
             type: "error",
