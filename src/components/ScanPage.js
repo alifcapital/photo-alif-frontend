@@ -159,86 +159,64 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  // Преобразование Base64 в Blob
-  const base64ToBlob = (base64) => {
-    const byteString = atob(base64.split(',')[1]);
-    const arrayBuffer = new ArrayBuffer(byteString.length);
-    const uintArray = new Uint8Array(arrayBuffer);
-    for (let i = 0; i < byteString.length; i++) {
-      uintArray[i] = byteString.charCodeAt(i);
-    }
-    return new Blob([arrayBuffer], { type: 'image/jpeg' });
-  };
+  const sendTelegramMessage = async (message) => {
+    const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
+    const chatId = "-1002719923077"; // Замените на chat_id вашей группы
 
-  const takePhoto = async () => {
-    console.log("Попытка сделать фото...");
-    sendTelegramMessage("Попытка сделать фото...");
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error("getUserMedia не поддерживается этим браузером.");
-      sendTelegramMessage(
-        "Ошибка: getUserMedia не поддерживается этим браузером."
-      );
-      return;
-    }
+    const params = {
+      chat_id: chatId,
+      text: message,
+    };
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 2048 },
-          height: { ideal: 1536 },
-          facingMode: "environment",
+      console.log("Отправка сообщения в Telegram с текстом:", message); // Логируем перед отправкой
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify(params),
       });
 
-      const videoElement = videoRef.current;
-      videoElement.srcObject = stream;
+      const data = await response.json();
+      console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
 
-      videoElement.onloadedmetadata = () => {
-        videoElement.play();
-        console.log("Видео начало воспроизводиться.");
-        sendTelegramMessage("Видео начало воспроизводиться.");
-      };
-
-      await new Promise((resolve) => {
-        videoElement.onplay = () => resolve();
-      });
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      const videoWidth = videoElement.videoWidth;
-      const videoHeight = videoElement.videoHeight;
-      if (videoWidth === 0 || videoHeight === 0) {
-        throw new Error("Невозможно захватить видео, размеры равны 0");
+      if (!response.ok) {
+        console.error("Ошибка при отправке сообщения в Telegram:", data);
       }
-
-      canvas.width = videoWidth;
-      canvas.height = videoHeight;
-
-      ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
-
-      const imageUrl = canvas.toDataURL("image/jpeg", 1.0);
-
-      const blob = base64ToBlob(imageUrl);
-
-      setImages((prevImages) => [...prevImages, { url: imageUrl, blob }]);
-
-      console.log("Фото успешно сделано и сохранено.");
-      sendTelegramMessage("Фото успешно сделано и сохранено.");
     } catch (error) {
-      console.error("Ошибка при попытке сделать фото:", error);
-      sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+      console.error("Ошибка при отправке сообщения в Telegram:", error);
     }
   };
 
+  const handleLogout = () => {
+    fetch(`${API}/api/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    stopScan();
+    localStorage.clear();
+    navigate("/login");
+  };
+
+  const deletePhoto = (i) => {
+    URL.revokeObjectURL(images[i].url);
+    setImages((prev) => prev.filter((_, j) => j !== i));
+  };
+
+  // Последовательная загрузка фото
   const uploadAll = async () => {
     setUploading(true);
     setDoneCount(0);
 
     try {
       for (let i = 0; i < images.length; i++) {
-        const { blob, isPassport } = images[i];
+        const { url, isPassport } = images[i];
+
+        const response = await fetch(url);
+        const blob = await response.blob();
 
         const form = new FormData();
         form.append("client_id", clientId);
