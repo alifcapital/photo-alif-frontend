@@ -160,103 +160,102 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-    const sendTelegramMessage = async (message) => {
-      const token = '7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg';  // Замените на токен вашего бота
-      const chatId = '-1002719923077';  // Замените на chat_id вашей группы
-    
-      const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      
-      const params = {
-        chat_id: chatId,
-        text: message,
+  const sendTelegramMessage = async (message) => {
+    const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
+    const chatId = "-1002719923077"; // Замените на chat_id вашей группы
+
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
+    const params = {
+      chat_id: chatId,
+      text: message,
+    };
+
+    try {
+      console.log("Отправка сообщения в Telegram:", message); // Логируем перед отправкой
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(params),
+      });
+
+      const data = await response.json();
+      console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
+
+      if (!response.ok) {
+        console.error("Ошибка при отправке сообщения в Telegram:", data);
+      }
+    } catch (error) {
+      console.error("Error sending message to Telegram:", error);
+    }
+  };
+
+  const takePhoto = async () => {
+    console.log("Попытка сделать фото...");
+    sendTelegramMessage("Попытка сделать фото...");
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error("getUserMedia не поддерживается этим браузером.");
+      sendTelegramMessage(
+        "Ошибка: getUserMedia не поддерживается этим браузером."
+      );
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 2048 }, // Запрашиваем 2048px по ширине
+          height: { ideal: 1536 }, // Запрашиваем 1536px по высоте
+          facingMode: "environment",
+        },
+      });
+
+      const videoElement = videoRef.current;
+      videoElement.srcObject = stream;
+
+      // Ожидаем, пока видео загрузится и начнёт воспроизводиться
+      videoElement.onloadedmetadata = () => {
+        videoElement.play();
+        console.log("Видео начало воспроизводиться.");
+        sendTelegramMessage("Видео начало воспроизводиться.");
       };
-      
-      try {
-        console.log("Отправка сообщения в Telegram:", message);  // Логируем перед отправкой
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(params),
-        });
-    
-        const data = await response.json();
-        console.log("Ответ от Telegram:", data);  // Логируем ответ от Telegram API
-    
-        if (!response.ok) {
-          console.error("Ошибка при отправке сообщения в Telegram:", data);
-        }
-      } catch (error) {
-        console.error("Error sending message to Telegram:", error);
+
+      // Ждём, пока видео начнёт воспроизводиться
+      await new Promise((resolve) => {
+        videoElement.onplay = () => resolve();
+      });
+
+      // Создаём canvas и захватываем кадр
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Проверяем размеры видео, чтобы убедиться, что оно стабильно
+      const videoWidth = videoElement.videoWidth;
+      const videoHeight = videoElement.videoHeight;
+      if (videoWidth === 0 || videoHeight === 0) {
+        throw new Error("Невозможно захватить видео, размеры равны 0");
       }
-    };
-    
-    const takePhoto = async () => {
-      console.log("Попытка сделать фото...");
-      sendTelegramMessage("Попытка сделать фото...");
-    
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error("getUserMedia не поддерживается этим браузером.");
-        sendTelegramMessage("Ошибка: getUserMedia не поддерживается этим браузером.");
-        return;
-      }
-    
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 2048 },  // Запрашиваем 2048px по ширине
-            height: { ideal: 1536 },  // Запрашиваем 1536px по высоте
-            facingMode: 'environment',
-          }
-        });
-    
-        const videoElement = videoRef.current;
-        videoElement.srcObject = stream;
-    
-        // Ожидаем, пока видео загрузится и начнёт воспроизводиться
-        videoElement.onloadedmetadata = () => {
-          videoElement.play();
-          console.log("Видео начало воспроизводиться.");
-          sendTelegramMessage("Видео начало воспроизводиться.");
-        };
-    
-        // Ждём, пока видео начнёт воспроизводиться
-        await new Promise((resolve) => {
-          videoElement.onplay = () => resolve();
-        });
-    
-        // Создаём canvas и захватываем кадр
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-    
-        // Проверяем размеры видео, чтобы убедиться, что оно стабильно
-        const videoWidth = videoElement.videoWidth;
-        const videoHeight = videoElement.videoHeight;
-        if (videoWidth === 0 || videoHeight === 0) {
-          throw new Error("Невозможно захватить видео, размеры равны 0");
-        }
-    
-        canvas.width = videoWidth;
-        canvas.height = videoHeight;
-    
-        // Рисуем видео в canvas
-        ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
-    
-        // Получаем изображение
-        const imageUrl = canvas.toDataURL('image/jpeg', 1.0);
-        setImages((prevImages) => [...prevImages, { url: imageUrl }]);
-    
-        console.log("Фото успешно сделано и сохранено.");
-        sendTelegramMessage("Фото успешно сделано и сохранено.");
-    
-      } catch (error) {
-        console.error("Ошибка при попытке сделать фото:", error);
-        sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
-      }
-    };
-    
-  
+
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
+
+      // Рисуем видео в canvas
+      ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
+
+      // Получаем изображение
+      const imageUrl = canvas.toDataURL("image/jpeg", 1.0);
+      setImages((prevImages) => [...prevImages, { url: imageUrl }]);
+
+      console.log("Фото успешно сделано и сохранено.");
+      sendTelegramMessage("Фото успешно сделано и сохранено.");
+    } catch (error) {
+      console.error("Ошибка при попытке сделать фото:", error);
+      sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+    }
+  };
 
   const togglePassport = (i) =>
     setImages((prev) =>
@@ -283,7 +282,11 @@ export default function ScanPage() {
         try {
           const res = await fetch(`${API}/api/upload-image`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+              Accept: "application/json",
+            },
             body: form,
           });
 
