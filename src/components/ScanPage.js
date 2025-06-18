@@ -191,22 +191,98 @@ export default function ScanPage() {
     }
   };
 
-  const handleLogout = () => {
-    fetch(`${API}/api/auth/logout`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    stopScan();
-    localStorage.clear();
-    navigate("/login");
+  const takePhoto = async () => {
+    console.log("Попытка сделать фото...");
+    sendTelegramMessage("Попытка сделать фото...");
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error("getUserMedia не поддерживается этим браузером.");
+      sendTelegramMessage(
+        "Ошибка: getUserMedia не поддерживается этим браузером."
+      );
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 2048 }, // Запрашиваем 2048px по ширине
+          height: { ideal: 1536 }, // Запрашиваем 1536px по высоте
+          facingMode: "environment",
+        },
+      });
+
+      const videoElement = videoRef.current;
+      videoElement.srcObject = stream;
+
+      // Ожидаем, пока видео загрузится и начнёт воспроизводиться
+      videoElement.onloadedmetadata = () => {
+        videoElement.play();
+        console.log("Видео начало воспроизводиться.");
+        sendTelegramMessage("Видео начало воспроизводиться.");
+      };
+
+      // Ждём, пока видео начнёт воспроизводиться
+      await new Promise((resolve) => {
+        videoElement.onplay = () => resolve();
+      });
+
+      // Создаём canvas и захватываем кадр
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Проверяем размеры видео, чтобы убедиться, что оно стабильно
+      const videoWidth = videoElement.videoWidth;
+      const videoHeight = videoElement.videoHeight;
+      if (videoWidth === 0 || videoHeight === 0) {
+        throw new Error("Невозможно захватить видео, размеры равны 0");
+      }
+
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
+
+      // Рисуем видео в canvas
+      ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
+
+      // Получаем изображение
+      const imageUrl = canvas.toDataURL("image/jpeg", 1.0);
+
+      // Convert base64 to Blob
+      const byteString = atob(imageUrl.split(",")[1]); // Decode base64 string
+      const arrayBuffer = new ArrayBuffer(byteString.length);
+      const uintArray = new Uint8Array(arrayBuffer);
+
+      for (let i = 0; i < uintArray.length; i++) {
+        uintArray[i] = byteString.charCodeAt(i);
+      }
+
+      const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+
+      if (!blob) {
+        console.error("Ошибка: blob не был создан.");
+        sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
+        return;
+      }
+
+      setImages((prevImages) => [...prevImages, { url: imageUrl, blob }]);
+
+      console.log("Фото успешно сделано и сохранено.");
+      sendTelegramMessage("Фото успешно сделано и сохранено.");
+    } catch (error) {
+      console.error("Ошибка при попытке сделать фото:", error);
+      sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+    }
   };
 
+  const togglePassport = (i) =>
+    setImages((prev) =>
+      prev.map((x, j) => (j === i ? { ...x, isPassport: !x.isPassport } : x))
+    );
   const deletePhoto = (i) => {
     URL.revokeObjectURL(images[i].url);
     setImages((prev) => prev.filter((_, j) => j !== i));
   };
 
-  // Последовательная загрузка фото
   const uploadAll = async () => {
     setUploading(true);
     setDoneCount(0);
@@ -217,6 +293,8 @@ export default function ScanPage() {
 
         const response = await fetch(url);
         const blob = await response.blob();
+
+        console.log(`Загружаем фото ${i + 1}:`, blob); // Логируем перед отправкой
 
         const form = new FormData();
         form.append("client_id", clientId);
@@ -260,6 +338,16 @@ export default function ScanPage() {
     }
   };
 
+  const handleLogout = () => {
+    fetch(`${API}/api/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    stopScan();
+    localStorage.clear();
+    navigate("/login");
+  };
+
   return (
     <div className="scan-page">
       {toast && (
@@ -292,12 +380,8 @@ export default function ScanPage() {
 
       <Gallery
         images={images}
-        onToggle={(i) => {
-          setImages((prev) =>
-            prev.map((x, j) => (j === i ? { ...x, isPassport: !x.isPassport } : x))
-          );
-        }}
-        onDelete={(i) => deletePhoto(i)}
+        onToggle={togglePassport}
+        onDelete={deletePhoto}
       />
 
       {images.length > 0 && (
