@@ -284,8 +284,6 @@ export default function ScanPage() {
             method: "POST",
             headers: {
               Authorization: `Bearer ${token}`,
-              "Content-Type": "multipart/form-data",
-              Accept: "application/json",
             },
             body: form,
           });
