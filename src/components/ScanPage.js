@@ -245,18 +245,19 @@ export default function ScanPage() {
     ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
 
     // Получаем изображение в формате Blob
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        console.error("Ошибка: blob не был создан.");
-        sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
-        return;
-      }
+canvas.toBlob((blob) => {
+  if (!blob) {
+    console.error("Ошибка: blob не был создан.");
+    sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
+    return;
+  }
 
-      setImages((prevImages) => [...prevImages, { url: URL.createObjectURL(blob), blob }]);
+  // Здесь сохраняем Blob напрямую без создания URL
+  setImages((prevImages) => [...prevImages, { blob }]);
 
-      console.log("Фото успешно сделано и сохранено.");
-      sendTelegramMessage("Фото успешно сделано и сохранено.");
-    }, "image/jpeg");
+  console.log("Фото успешно сделано и сохранено.");
+  sendTelegramMessage("Фото успешно сделано и сохранено.");
+}, "image/jpeg");
 
   } catch (error) {
     console.error("Ошибка при попытке сделать фото:", error);
@@ -274,60 +275,56 @@ export default function ScanPage() {
     setImages((prev) => prev.filter((_, j) => j !== i));
   };
 
-  const uploadAll = async () => {
-    setUploading(true);
-    setDoneCount(0);
+const uploadAll = async () => {
+  setUploading(true);
+  setDoneCount(0);
 
-    try {
-      for (let i = 0; i < images.length; i++) {
-        const { url, isPassport } = images[i];
+  try {
+    for (let i = 0; i < images.length; i++) {
+      const { blob, isPassport } = images[i];
 
-        const response = await fetch(url);
-        const blob = await response.blob();
+      // Отправляем blob напрямую, а не URL
+      const form = new FormData();
+      form.append("client_id", clientId);
+      form.append("image", blob, `image_${i}.jpg`);  // Просто добавляем Blob
+      form.append("is_passport", isPassport ? "1" : "0");
 
-        console.log(`Загружаем фото ${i + 1}:`, blob); // Логируем перед отправкой
-
-        const form = new FormData();
-        form.append("client_id", clientId);
-        form.append("image", blob, `image_${i}.jpg`);
-        form.append("is_passport", isPassport ? "1" : "0");
-
-        const res = await fetch(`${API}/api/upload-image`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: form,
-        });
-
-        const responseData = await res.json();
-        console.log("Ответ от сервера:", responseData);
-
-        if (res.ok) {
-          setDoneCount(i + 1);
-        } else {
-          console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
-          setToast({
-            message: `Фото ${i + 1} не загрузилось`,
-            type: "error",
-          });
-        }
-      }
-
-      setToast({ message: "Все фото загружены!", type: "success" });
-      images.forEach((img) => URL.revokeObjectURL(img.url));
-      setImages([]); // Очистка списка после загрузки
-      stopScan();
-    } catch (error) {
-      console.error("Ошибка при загрузке всех фотографий:", error);
-      setToast({
-        message: "Ошибка при загрузке фотографий",
-        type: "error",
+      const res = await fetch(`${API}/api/upload-image`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
       });
-    } finally {
-      setUploading(false);
+
+      const responseData = await res.json();
+      console.log("Ответ от сервера:", responseData);
+
+      if (res.ok) {
+        setDoneCount(i + 1);
+      } else {
+        console.error(`Ошибка загрузки фото ${i + 1}:`, responseData);
+        setToast({
+          message: `Фото ${i + 1} не загрузилось`,
+          type: "error",
+        });
+      }
     }
-  };
+
+    setToast({ message: "Все фото загружены!", type: "success" });
+    setImages([]); // Очистка списка после загрузки
+    stopScan();
+  } catch (error) {
+    console.error("Ошибка при загрузке всех фотографий:", error);
+    setToast({
+      message: "Ошибка при загрузке фотографий",
+      type: "error",
+    });
+  } finally {
+    setUploading(false);
+  }
+};
+
 
   const handleLogout = () => {
     fetch(`${API}/api/auth/logout`, {
