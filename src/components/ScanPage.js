@@ -217,7 +217,7 @@ export default function ScanPage() {
             : {
                 width: { ideal: 1280 },
                 height: { ideal: 720 },
-                frameRate: { ideal: 15 },
+                aspectRatio: 1.7777777777777777,
               }),
         },
       });
