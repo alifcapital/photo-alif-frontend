@@ -205,8 +205,9 @@ export default function ScanPage() {
       return;
     }
 
+    let stream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "environment",
           ...(isIOS
@@ -222,26 +223,23 @@ export default function ScanPage() {
         },
       });
 
-      stream.getTracks().forEach((track) => {
-        track.stop();
-      });
-
       const videoElement = videoRef.current;
       videoElement.srcObject = stream;
 
-      if (isIOS) {
-        // Ждём, пока видео загрузится
-        await new Promise((resolve) => {
-          videoElement.onloadedmetadata = () => {
-            videoElement.play();
-            console.log("Видео начало воспроизводиться.");
-            sendTelegramMessage("Видео начало воспроизводиться.");
-          };
-          videoElement.onplay = () => resolve();
-        });
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        const onLoadedMetadata = () => {
+          videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+          videoElement.play().then(resolve).catch(console.error);
+        };
 
-        // Ждём 300 мс чтобы автоэкспозиция сработала
-        await new Promise((res) => setTimeout(res, 300));
+        videoElement.addEventListener("loadedmetadata", onLoadedMetadata);
+
+        setTimeout(resolve, 1000);
+      });
+
+      if (isIOS) {
+        await new Promise((res) => setTimeout(res, 500));
       }
 
       const canvas = document.createElement("canvas");
@@ -258,25 +256,35 @@ export default function ScanPage() {
 
       ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          console.error("Ошибка: blob не был создан.");
-          sendTelegramMessage("Ошибка при создании фото. Blob не существует.");
-          return;
-        }
+      stream.getTracks().forEach((track) => track.stop());
 
-        const url = URL.createObjectURL(blob);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            console.error("Ошибка: blob не был создан.");
+            sendTelegramMessage(
+              "Ошибка при создании фото. Blob не существует."
+            );
+            return;
+          }
 
-        setImages((prevImages) => [...prevImages, { blob, url }]);
-        console.log("Фото успешно сделано и сохранено.");
-        sendTelegramMessage("Фото успешно сделано и сохранено.");
-      }, "image/jpeg");
+          const url = URL.createObjectURL(blob);
+          setImages((prevImages) => [...prevImages, { blob, url }]);
+          console.log("Фото успешно сделано и сохранено.");
+          sendTelegramMessage("Фото успешно сделано и сохранено.");
+        },
+        "image/jpeg",
+        0.95
+      );
     } catch (error) {
       console.error("Ошибка при попытке сделать фото:", error);
       sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
+
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     }
   };
-
   const togglePassport = (i) =>
     setImages((prev) =>
       prev.map((x, j) => (j === i ? { ...x, isPassport: !x.isPassport } : x))
