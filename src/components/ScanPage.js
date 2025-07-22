@@ -226,7 +226,6 @@ export default function ScanPage() {
       const videoElement = videoRef.current;
       videoElement.srcObject = stream;
 
-      // Wait for video to be ready
       await new Promise((resolve) => {
         const onLoadedMetadata = () => {
           videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
@@ -238,9 +237,7 @@ export default function ScanPage() {
         setTimeout(resolve, 1000);
       });
 
-      if (isIOS) {
-        await new Promise((res) => setTimeout(res, 500));
-      }
+      await new Promise((res) => setTimeout(res, 500));
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
