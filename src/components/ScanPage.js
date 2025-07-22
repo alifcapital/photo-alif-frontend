@@ -216,9 +216,9 @@ export default function ScanPage() {
                 height: { ideal: 1536 },
               }
             : {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                frameRate: { ideal: 15 },
+                width: { ideal: 1280, max: 1280 },
+                height: { ideal: 720, max: 720 },
+                frameRate: { ideal: 15, max: 30 },
               }),
         },
       });
@@ -226,18 +226,18 @@ export default function ScanPage() {
       const videoElement = videoRef.current;
       videoElement.srcObject = stream;
 
+      // Ждём, пока видео загрузится
       await new Promise((resolve) => {
-        const onLoadedMetadata = () => {
-          videoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
-          videoElement.play().then(resolve).catch(console.error);
+        videoElement.onloadedmetadata = () => {
+          videoElement.play();
+          console.log("Видео начало воспроизводиться.");
+          sendTelegramMessage("Видео начало воспроизводиться.");
         };
-
-        videoElement.addEventListener("loadedmetadata", onLoadedMetadata);
-
-        setTimeout(resolve, 1000);
+        videoElement.onplay = () => resolve();
       });
 
-      await new Promise((res) => setTimeout(res, 500));
+      // Ждём 300 мс чтобы автоэкспозиция сработала
+      await new Promise((res) => setTimeout(res, 300));
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
