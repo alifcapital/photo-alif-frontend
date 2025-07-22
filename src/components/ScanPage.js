@@ -222,6 +222,10 @@ export default function ScanPage() {
         },
       });
 
+      stream.getTracks().forEach((track) => {
+        track.stop();
+      });
+
       const videoElement = videoRef.current;
       videoElement.srcObject = stream;
 
