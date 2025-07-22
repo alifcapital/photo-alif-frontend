@@ -225,20 +225,18 @@ export default function ScanPage() {
       const videoElement = videoRef.current;
       videoElement.srcObject = stream;
 
-      if (isIOS) {
-        // Ждём, пока видео загрузится
-        await new Promise((resolve) => {
-          videoElement.onloadedmetadata = () => {
-            videoElement.play();
-            console.log("Видео начало воспроизводиться.");
-            sendTelegramMessage("Видео начало воспроизводиться.");
-          };
-          videoElement.onplay = () => resolve();
-        });
+      // Ждём, пока видео загрузится
+      await new Promise((resolve) => {
+        videoElement.onloadedmetadata = () => {
+          videoElement.play();
+          console.log("Видео начало воспроизводиться.");
+          sendTelegramMessage("Видео начало воспроизводиться.");
+        };
+        videoElement.onplay = () => resolve();
+      });
 
-        // Ждём 300 мс чтобы автоэкспозиция сработала
-        await new Promise((res) => setTimeout(res, 300));
-      }
+      // Ждём 300 мс чтобы автоэкспозиция сработала
+      await new Promise((res) => setTimeout(res, 500));
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
