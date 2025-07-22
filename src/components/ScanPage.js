@@ -205,9 +205,8 @@ export default function ScanPage() {
       return;
     }
 
-    let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "environment",
           ...(isIOS
@@ -255,8 +254,6 @@ export default function ScanPage() {
 
       ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
 
-      stream.getTracks().forEach((track) => track.stop());
-
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -278,10 +275,6 @@ export default function ScanPage() {
     } catch (error) {
       console.error("Ошибка при попытке сделать фото:", error);
       sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
-
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
     }
   };
   const togglePassport = (i) =>
