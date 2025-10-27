@@ -161,47 +161,9 @@ export default function ScanPage() {
     setScanning(false);
   };
 
-  const sendTelegramMessage = async (message) => {
-    const token = "7622259937:AAG5G4DfcbIlJCUEEzwRCj3OYxWRLM89sLg"; // Замените на токен вашего бота
-    const chatId = "-1002719923077"; // Замените на chat_id вашей группы
-
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-
-    const params = {
-      chat_id: chatId,
-      text: message,
-    };
-
-    try {
-      console.log("Отправка сообщения в Telegram с текстом:", message); // Логируем перед отправкой
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-      console.log("Ответ от Telegram:", data); // Логируем ответ от Telegram API
-
-      if (!response.ok) {
-        console.error("Ошибка при отправке сообщения в Telegram:", data);
-      }
-    } catch (error) {
-      console.error("Ошибка при отправке сообщения в Telegram:", error);
-    }
-  };
-
   const takePhoto = async () => {
-    console.log("Попытка сделать фото...");
-    sendTelegramMessage("Попытка сделать фото...");
-
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.error("getUserMedia не поддерживается этим браузером.");
-      sendTelegramMessage(
-        "Ошибка: getUserMedia не поддерживается этим браузером."
-      );
       return;
     }
 
@@ -230,7 +192,6 @@ export default function ScanPage() {
         videoElement.onloadedmetadata = () => {
           videoElement.play();
           console.log("Видео начало воспроизводиться.");
-          sendTelegramMessage("Видео начало воспроизводиться.");
         };
         videoElement.onplay = () => resolve();
       });
@@ -256,23 +217,18 @@ export default function ScanPage() {
         (blob) => {
           if (!blob) {
             console.error("Ошибка: blob не был создан.");
-            sendTelegramMessage(
-              "Ошибка при создании фото. Blob не существует."
-            );
             return;
           }
 
           const url = URL.createObjectURL(blob);
           setImages((prevImages) => [...prevImages, { blob, url }]);
           console.log("Фото успешно сделано и сохранено.");
-          sendTelegramMessage("Фото успешно сделано и сохранено.");
         },
         "image/jpeg",
         0.95
       );
     } catch (error) {
       console.error("Ошибка при попытке сделать фото:", error);
-      sendTelegramMessage(`Ошибка при попытке сделать фото: ${error.message}`);
     }
   };
   const togglePassport = (i) =>
