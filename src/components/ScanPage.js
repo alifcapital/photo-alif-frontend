@@ -300,8 +300,6 @@ export default function ScanPage() {
     navigate("/login");
   };
 
-  alert("Test....");
-
   return (
     <div className="scan-page">
       {toast && (
